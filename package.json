@@ -1,0 +1,24 @@
+{
+  "name": "boom-festival",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "astro check",
+    "build": "astro check && astro build",
+    "dev": "astro dev",
+    "preview": "astro preview",
+    "test": "vitest run",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "astro": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.10",
+    "@playwright/test": "latest",
+    "@types/node": "^26.2.0",
+    "typescript": "^6.0.3",
+    "vitest": "latest"
+  }
+}
