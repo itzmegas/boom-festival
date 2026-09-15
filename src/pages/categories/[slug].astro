@@ -1,0 +1,36 @@
+---
+import { getCollection } from "astro:content";
+import CategoryFilter from "../../components/CategoryFilter.astro";
+import PoiList from "../../components/PoiList.astro";
+import UnofficialNotice from "../../components/UnofficialNotice.astro";
+import "../../styles/global.css";
+import { CURRENT_EDITION, filterPois } from "../../lib/poi";
+
+export async function getStaticPaths() {
+  const categories = await getCollection("categories");
+  return categories.map((category) => ({ params: { slug: category.data.slug } }));
+}
+
+const { slug } = Astro.params;
+const [pois, categories] = await Promise.all([getCollection("pois"), getCollection("categories")]);
+const visible = filterPois(pois, CURRENT_EDITION, slug);
+const selected = categories.find((category) => category.data.slug === slug);
+---
+
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>{selected?.data.name ?? "Category"} — Independent Boom 2025 map</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+    <UnofficialNotice />
+    <main id="main-content" tabindex="-1">
+      <h1>{selected?.data.name ?? "Unknown category"}</h1>
+      <p>Only matching curated places are listed. Plan-local fan curation only.</p>
+      <CategoryFilter categories={categories} editionSlug={CURRENT_EDITION} selected={slug} />
+      <PoiList pois={visible} categories={categories} />
+    </main>
+  </body>
+</html>

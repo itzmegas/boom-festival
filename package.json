@@ -12,12 +12,14 @@
   },
   "dependencies": {
     "astro": "latest",
+    "three": "^0.186.0",
     "zod": "latest"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
     "@playwright/test": "latest",
     "@types/node": "^26.2.0",
+    "@types/three": "^0.185.4",
     "typescript": "^6.0.3",
     "vitest": "latest"
   }

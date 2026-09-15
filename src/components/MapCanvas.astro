@@ -1,0 +1,135 @@
+---
+import { isProminent, type PoiEntry } from "../lib/poi";
+
+interface Props {
+  pois: PoiEntry[];
+}
+
+const { pois } = Astro.props;
+const mapPois = pois.map((poi) => ({
+  slug: poi.data.slug,
+  x: poi.data.plan.x,
+  y: poi.data.plan.y,
+  prominent: isProminent(poi),
+}));
+---
+
+<div
+  class="map-enhancement"
+  data-map-enhancement
+  data-webgl="pending"
+  data-pois={JSON.stringify(mapPois)}
+  data-plan-url="/map/boom-2025/plan-base.svg"
+  data-render-count="0"
+>
+  <img
+    class="map-placeholder"
+    src="/map/boom-2025/plan-base.svg"
+    alt="Original placeholder plan of the Boom 2025 site with labeled zones"
+    width="960"
+    height="640"
+  />
+  <canvas class="map-canvas" aria-hidden="true" tabindex="-1"></canvas>
+</div>
+
+<script>
+  import { dispatchPoiSelect, listenForPoiSelect } from "../scripts/map/selection";
+  import { supportsWebGl } from "../scripts/map/webgl-check";
+  import type { MapPoi, MapSceneHandle } from "../scripts/map/scene";
+
+  const setupMap = async (host: HTMLElement) => {
+    const canvas = host.querySelector<HTMLCanvasElement>("canvas");
+
+    if (!canvas) {
+      return;
+    }
+
+    const controller = new AbortController();
+    const links = [...document.querySelectorAll<HTMLAnchorElement>("a[data-poi-slug]")];
+    let scene: MapSceneHandle | undefined;
+    let disposed = false;
+    const dispose = () => {
+      if (disposed) {
+        return;
+      }
+      disposed = true;
+      controller.abort();
+      scene?.dispose();
+    };
+
+    window.addEventListener("pagehide", dispose, { once: true, signal: controller.signal });
+
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    host.dataset.motion = reducedMotion ? "reduce" : "standard";
+
+    listenForPoiSelect(
+      window,
+      (slug) => {
+        host.dataset.selectedPoi = slug ?? "";
+        for (const link of links) {
+          const selected = link.dataset.poiSlug === slug;
+          if (selected) {
+            link.setAttribute("aria-current", "true");
+          } else {
+            link.removeAttribute("aria-current");
+          }
+        }
+      },
+      controller.signal,
+    );
+
+    for (const link of links) {
+      link.addEventListener(
+        "focus",
+        () => dispatchPoiSelect(window, link.dataset.poiSlug ?? null),
+        { signal: controller.signal },
+      );
+      link.addEventListener(
+        "click",
+        () => window.sessionStorage.setItem("poi-return-focus", link.dataset.poiSlug ?? ""),
+        { signal: controller.signal },
+      );
+    }
+
+    const hashSlug = window.location.hash.slice(1);
+    const returnSlug = window.sessionStorage.getItem("poi-return-focus");
+    if (hashSlug && hashSlug === returnSlug) {
+      window.sessionStorage.removeItem("poi-return-focus");
+      requestAnimationFrame(() => {
+        document.querySelector<HTMLAnchorElement>(`a[data-poi-slug='${CSS.escape(hashSlug)}']`)?.focus();
+      });
+    }
+
+    if (!supportsWebGl()) {
+      host.dataset.webgl = "unavailable";
+      return;
+    }
+
+    try {
+      host.dataset.webgl = "loading";
+      const { createMapScene } = await import("../scripts/map/scene");
+      if (disposed) {
+        return;
+      }
+      const pois = JSON.parse(host.dataset.pois ?? "[]") as MapPoi[];
+      scene = createMapScene({
+        canvas,
+        planUrl: host.dataset.planUrl ?? "",
+        pois,
+        onRender: () => {
+          host.dataset.renderCount = String(Number(host.dataset.renderCount ?? "0") + 1);
+        },
+      });
+      host.dataset.webgl = "ready";
+    } catch {
+      scene?.dispose();
+      if (!disposed) {
+        host.dataset.webgl = "unavailable";
+      }
+    }
+  };
+
+  for (const host of document.querySelectorAll<HTMLElement>("[data-map-enhancement]")) {
+    void setupMap(host);
+  }
+</script>

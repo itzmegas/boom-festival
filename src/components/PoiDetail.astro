@@ -1,0 +1,42 @@
+---
+import UnofficialNotice from "./UnofficialNotice.astro";
+import { NOT_YET_CURATED, isProminent, type CategoryEntry, type PoiEntry } from "../lib/poi";
+
+interface Props {
+  poi: PoiEntry;
+  category?: CategoryEntry | undefined;
+}
+
+const { poi, category } = Astro.props;
+const description = poi.data.description ?? NOT_YET_CURATED;
+const gridRef = poi.data.gridRef ?? NOT_YET_CURATED;
+const incomplete = poi.data.description === undefined || poi.data.gridRef === undefined;
+---
+
+<article data-poi-detail={poi.data.slug}>
+  <h1>{poi.data.name}</h1>
+  <p>Category: {category?.data.name ?? "Unknown category"}</p>
+  <p class={incomplete ? "incomplete" : undefined}>
+    {description}
+  </p>
+  <p>Plan grid: {gridRef}</p>
+  <p>
+    Plan position (normalized, origin top-left): {poi.data.plan.x.toFixed(2)}, {poi.data.plan.y.toFixed(2)}
+  </p>
+  {isProminent(poi) ? (
+    <p class="prominence-note">
+      Highlighted care or assembly landmark. Independent fan curation only. Not
+      official operational, GPS, or routing guidance.
+    </p>
+  ) : null}
+  <UnofficialNotice compact />
+</article>
+
+<script>
+  const detail = document.querySelector<HTMLElement>("[data-poi-detail]");
+  window.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && detail?.dataset.poiDetail) {
+      window.location.assign(`/#${encodeURIComponent(detail.dataset.poiDetail)}`);
+    }
+  });
+</script>

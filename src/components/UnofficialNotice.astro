@@ -1,0 +1,21 @@
+---
+interface Props {
+  compact?: boolean;
+}
+
+const { compact = false } = Astro.props;
+---
+
+<aside class="notice" aria-label="Project framing">
+  <p>
+    Independent, unofficial, fan-curated map. Not affiliated with Boom Festival.
+    Places are plan-local and non-GPS. Nothing here is official, operational, or
+    ticketing guidance.
+  </p>
+  {compact ? null : (
+    <p>
+      Care and assembly landmarks are highlighted for orientation only. They are
+      not authoritative routing or emergency instructions.
+    </p>
+  )}
+</aside>

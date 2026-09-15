@@ -1,14 +1,35 @@
-<!doctype html>
+---
+import { getCollection } from "astro:content";
+import CategoryFilter from "../components/CategoryFilter.astro";
+import MapCanvas from "../components/MapCanvas.astro";
+import PoiList from "../components/PoiList.astro";
+import UnofficialNotice from "../components/UnofficialNotice.astro";
+import "../styles/global.css";
+import { CURRENT_EDITION, filterPois } from "../lib/poi";
+
+const [pois, categories] = await Promise.all([getCollection("pois"), getCollection("categories")]);
+const visible = filterPois(pois, CURRENT_EDITION, undefined);
+---
+
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
-    <title>Interactive Boom Map</title>
+    <title>Independent Boom 2025 map</title>
   </head>
   <body>
-    <main>
-      <h1>Interactive Boom Map</h1>
-      <p>Independent, unofficial project bootstrap.</p>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+    <UnofficialNotice />
+    <main id="main-content" tabindex="-1">
+      <h1>Independent Boom 2025 map</h1>
+      <p>
+        Browse a fan-curated, plan-local illustration. This is not GPS, live data,
+        or official navigation.
+      </p>
+      <MapCanvas pois={visible} />
+      <CategoryFilter categories={categories} editionSlug={CURRENT_EDITION} />
+      <h2>Curated places</h2>
+      <PoiList pois={visible} categories={categories} />
     </main>
   </body>
 </html>

@@ -1,0 +1,33 @@
+---
+import { getCollection } from "astro:content";
+import PoiDetail from "../../../components/PoiDetail.astro";
+import "../../../styles/global.css";
+import { categoryId, editionId } from "../../../lib/poi";
+
+export async function getStaticPaths() {
+  const pois = await getCollection("pois");
+  return pois.map((poi) => ({
+    params: { edition: editionId(poi), slug: poi.data.slug },
+    props: { poi },
+  }));
+}
+
+const { poi } = Astro.props;
+const categories = await getCollection("categories");
+const category = categories.find((entry) => entry.data.slug === categoryId(poi));
+---
+
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>{poi.data.name} — Independent Boom map</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+    <main id="main-content" tabindex="-1">
+      <p><a href="/">Back to the map</a></p>
+      <PoiDetail poi={poi} category={category} />
+    </main>
+  </body>
+</html>

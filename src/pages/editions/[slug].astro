@@ -1,0 +1,39 @@
+---
+import { getCollection } from "astro:content";
+import CategoryFilter from "../../components/CategoryFilter.astro";
+import PoiList from "../../components/PoiList.astro";
+import UnofficialNotice from "../../components/UnofficialNotice.astro";
+import "../../styles/global.css";
+import { filterPois } from "../../lib/poi";
+
+export async function getStaticPaths() {
+  const editions = await getCollection("editions");
+  return editions.map((edition) => ({ params: { slug: edition.data.slug } }));
+}
+
+const { slug } = Astro.params;
+const [pois, categories, editions] = await Promise.all([
+  getCollection("pois"),
+  getCollection("categories"),
+  getCollection("editions"),
+]);
+const edition = editions.find((entry) => entry.data.slug === slug);
+const visible = filterPois(pois, slug ?? "", undefined);
+---
+
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>{edition?.data.name ?? "Edition"} — Independent Boom map</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+    <UnofficialNotice />
+    <main id="main-content" tabindex="-1">
+      <h1>{edition?.data.name ?? "Unknown edition"}</h1>
+      <CategoryFilter categories={categories} editionSlug={slug ?? ""} />
+      <PoiList pois={visible} categories={categories} />
+    </main>
+  </body>
+</html>

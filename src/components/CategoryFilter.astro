@@ -1,0 +1,31 @@
+---
+import type { CategoryEntry } from "../lib/poi";
+
+interface Props {
+  categories: CategoryEntry[];
+  editionSlug: string;
+  selected?: string;
+}
+
+const { categories, editionSlug, selected } = Astro.props;
+const editionHref = editionSlug === "boom-2025" ? "/" : `/editions/${editionSlug}/`;
+---
+
+<nav class="filter-list" aria-label="Filter places by category">
+  <p>Filter by category</p>
+  <ul>
+    <li>
+      <a href={editionHref} aria-current={selected === undefined ? "page" : undefined}>All places</a>
+    </li>
+    {categories.map((category) => (
+      <li>
+        <a
+          href={editionSlug === "boom-2025" ? `/categories/${category.data.slug}/` : editionHref}
+          aria-current={selected === category.data.slug ? "page" : undefined}
+        >
+          {category.data.name}
+        </a>
+      </li>
+    ))}
+  </ul>
+</nav>

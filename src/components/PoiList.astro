@@ -1,0 +1,37 @@
+---
+import { categoryId, editionId, isProminent, type CategoryEntry, type PoiEntry } from "../lib/poi";
+
+interface Props {
+  pois: PoiEntry[];
+  categories: CategoryEntry[];
+}
+
+const { pois, categories } = Astro.props;
+const names = new Map(categories.map((category) => [category.data.slug, category.data.name]));
+---
+
+{pois.length === 0 ? (
+  <p class="empty-state" role="status">
+    Curation for this edition is incomplete. No published places are available yet.
+  </p>
+) : (
+  <ul class="poi-list">
+    {pois.map((poi) => {
+      const prominent = isProminent(poi);
+      const categoryName = names.get(categoryId(poi)) ?? "Unknown category";
+      return (
+        <li class={prominent ? "prominent" : undefined}>
+          <a
+            href={`/poi/${editionId(poi)}/${poi.data.slug}/`}
+            id={`poi-${poi.data.slug}`}
+            data-poi-slug={poi.data.slug}
+          >
+            {poi.data.name}
+            {prominent ? " (highlighted care landmark)" : ""}
+          </a>
+          <span> — {categoryName}</span>
+        </li>
+      );
+    })}
+  </ul>
+)}
