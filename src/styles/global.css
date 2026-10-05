@@ -61,6 +61,212 @@ button {
   font-weight: 700;
 }
 
+.home-page {
+  box-sizing: border-box;
+  width: min(100% - 2rem, 88rem);
+  margin: 0 auto;
+  padding: 0 0 3rem;
+}
+
+.home-page *,
+.home-page *::before,
+.home-page *::after {
+  box-sizing: border-box;
+}
+
+.home-notice .notice {
+  margin: 0.75rem 0 1.25rem;
+  padding: 0.5rem 0.85rem;
+  border-color: #b5a88e;
+  border-radius: 0.5rem;
+  background: #f0e9dc;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.home-notice .notice p {
+  margin: 0.25rem 0;
+}
+
+.home-main {
+  min-width: 0;
+}
+
+.home-page a {
+  color: #542b68;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.15em;
+}
+
+.home-page a:hover {
+  color: #321b40;
+}
+
+.home-intro {
+  margin-bottom: 1.25rem;
+}
+
+.home-intro h1 {
+  margin: 0;
+  color: #452653;
+  font-size: clamp(1.8rem, 3.4vw, 2.8rem);
+  line-height: 1.12;
+}
+
+.home-intro p {
+  max-width: 58ch;
+  margin: 0.65rem 0 0;
+  color: #514c48;
+}
+
+.map-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 2.1fr) minmax(17rem, 0.9fr);
+  align-items: start;
+  gap: clamp(1rem, 2.5vw, 2rem);
+}
+
+.map-display,
+.place-panel {
+  min-width: 0;
+}
+
+.place-panel {
+  padding: 1rem;
+  border: 1px solid #ded3c0;
+  border-radius: 0.75rem;
+  background: #faf7f0;
+}
+
+.home-main .map-enhancement {
+  width: 100%;
+  max-width: none;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border: 1px solid #b6a98f;
+  border-radius: 0.75rem;
+  background: #eee5d4;
+  box-shadow: 0 0.5rem 1.5rem rgb(56 39 55 / 9%);
+}
+
+.map-enhancement .map-placeholder {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border: 0;
+}
+
+.map-controls {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  display: flex;
+  gap: 0.4rem;
+}
+
+.map-controls button {
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 0.75rem;
+  border: 1px solid #563d60;
+  border-radius: 0.5rem;
+  background: #fffaf2;
+  color: #382044;
+  font: inherit;
+  font-weight: 650;
+  box-shadow: 0 1px 4px rgb(27 27 27 / 18%);
+  cursor: pointer;
+}
+
+.map-controls button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.map-guidance {
+  margin: 0.5rem 0;
+  color: #514c48;
+  font-size: 0.88rem;
+}
+
+.map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.9rem;
+}
+
+.map-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.legend-swatch {
+  width: 0.85rem;
+  height: 0.85rem;
+  flex: 0 0 auto;
+  border: 1px solid rgb(27 27 27 / 25%);
+  border-radius: 50%;
+}
+
+.legend-swatch-ordinary {
+  background: #5f2879;
+}
+
+.legend-swatch-care {
+  background: #b63c24;
+}
+
+.place-panel {
+  padding: 1rem;
+  border: 1px solid #ded3c0;
+  border-radius: 0.75rem;
+  background: #faf7f0;
+}
+
+.place-panel h2 {
+  margin: 1rem 0 0.5rem;
+  color: #452653;
+  font-size: 1.35rem;
+}
+
+.place-panel .filter-list {
+  padding: 0;
+}
+
+.place-panel .filter-list p {
+  margin: 0 0 0.25rem;
+  font-weight: 650;
+}
+
+.place-panel .filter-list ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.place-panel .filter-list a {
+  padding: 0.25rem 0.4rem;
+  border-radius: 0.25rem;
+}
+
+.place-panel .poi-list {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.place-panel .poi-list li {
+  padding-left: 0.1rem;
+}
+
 .map-placeholder {
   width: min(100%, 48rem);
   height: auto;
@@ -75,6 +281,10 @@ button {
 
 .map-enhancement .map-placeholder {
   width: 100%;
+}
+
+.map-enhancement[data-webgl="ready"] .map-placeholder {
+  visibility: hidden;
 }
 
 .map-canvas {
@@ -109,5 +319,40 @@ button {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto;
+  }
+}
+
+@media (max-width: 760px) {
+  .home-page {
+    width: min(100% - 1.25rem, 42rem);
+    padding-bottom: 1.5rem;
+  }
+
+  .map-workspace {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .map-display {
+    width: 100%;
+  }
+  .place-panel {
+    width: 100%;
+    padding: 0.8rem;
+  }
+
+  .home-main .map-enhancement {
+    aspect-ratio: 3 / 2;
+  }
+
+  .map-controls {
+    right: 0.45rem;
+    bottom: 0.45rem;
+    gap: 0.25rem;
+  }
+
+  .map-controls button {
+    padding: 0 0.55rem;
   }
 }

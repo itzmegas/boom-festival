@@ -19,17 +19,25 @@ const visible = filterPois(pois, CURRENT_EDITION, undefined);
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to main content</a>
-    <UnofficialNotice />
-    <main id="main-content" tabindex="-1">
-      <h1>Independent Boom 2025 map</h1>
-      <p>
-        Browse a fan-curated, plan-local illustration. This is not GPS, live data,
-        or official navigation.
-      </p>
-      <MapCanvas pois={visible} />
-      <CategoryFilter categories={categories} editionSlug={CURRENT_EDITION} />
-      <h2>Curated places</h2>
-      <PoiList pois={visible} categories={categories} />
-    </main>
+    <div class="home-page">
+      <div class="home-notice"><UnofficialNotice /></div>
+      <main id="main-content" class="home-main" tabindex="-1">
+        <header class="home-intro">
+          <h1>Independent Boom 2025 map</h1>
+          <p>
+            Browse a fan-curated, plan-local illustration. This is not GPS, live data,
+            or official navigation.
+          </p>
+        </header>
+        <section class="map-workspace" aria-label="Map and curated places">
+          <MapCanvas pois={visible} />
+          <div class="place-panel">
+            <CategoryFilter categories={categories} editionSlug={CURRENT_EDITION} />
+            <h2>Curated places</h2>
+            <PoiList pois={visible} categories={categories} />
+          </div>
+        </section>
+      </main>
+    </div>
   </body>
 </html>

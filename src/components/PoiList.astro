@@ -35,3 +35,33 @@ const names = new Map(categories.map((category) => [category.data.slug, category
     })}
   </ul>
 )}
+
+<script>
+  import { dispatchPoiSelect } from "../scripts/map/selection";
+
+  const returnFocusKey = "poi-return-focus";
+  const links = [...document.querySelectorAll<HTMLAnchorElement>("a[data-poi-slug]")];
+
+  for (const link of links) {
+    link.addEventListener("focus", () => dispatchPoiSelect(window, link.dataset.poiSlug ?? null));
+    link.addEventListener("click", () => {
+      try {
+        window.sessionStorage.setItem(returnFocusKey, link.dataset.poiSlug ?? "");
+      } catch {
+        // Storage may be unavailable; semantic navigation must still work.
+      }
+    });
+  }
+
+  try {
+    const hashSlug = window.location.hash.slice(1);
+    if (hashSlug && hashSlug === window.sessionStorage.getItem(returnFocusKey)) {
+      window.sessionStorage.removeItem(returnFocusKey);
+      requestAnimationFrame(() => {
+        document.querySelector<HTMLAnchorElement>(`a[data-poi-slug='${CSS.escape(hashSlug)}']`)?.focus();
+      });
+    }
+  } catch {
+    // Focus restoration is progressive enhancement when storage is unavailable.
+  }
+</script>

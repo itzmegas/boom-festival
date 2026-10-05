@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
 
 test("landing frames the unofficial map and lists curated places", async ({ page }) => {
   await page.goto("/");
@@ -47,4 +48,20 @@ test("keyboard can reach filters, places, and details", async ({ page }) => {
   await expect(page.getByRole("link", { name: "Skip to main content" })).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page.locator("#main-content")).toBeFocused();
+});
+
+test("key map routes have no WCAG 2.1 A or AA axe violations", async ({ page }) => {
+  for (const route of [
+    "/",
+    "/categories/healing/",
+    "/poi/boom-2025/yoga-dome/",
+    "/editions/boom-empty/",
+    "/poi/unknown/missing/",
+  ]) {
+    await page.goto(route);
+    const { violations } = await new AxeBuilder({ page })
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+      .analyze();
+    expect(violations, `${route}: ${JSON.stringify(violations)}`).toEqual([]);
+  }
 });

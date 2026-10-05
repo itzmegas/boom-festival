@@ -17,6 +17,7 @@ const PLAN = { width: 10, depth: 20 / 3 } as const;
 const MARKER_COLOR = 0x5f2879;
 const PROMINENT_COLOR = 0xb63c24;
 const SELECTED_COLOR = 0xf4bf3a;
+const INITIAL_CAMERA_STATE: IsometricCameraState = { targetX: 0, targetZ: 0, distance: 14 };
 
 export interface MapPoi extends NormalizedPoint {
   slug: string;
@@ -28,9 +29,15 @@ export interface MapSceneOptions {
   planUrl: string;
   pois: MapPoi[];
   onRender(): void;
+  onTextureReady(): void;
+  onTextureError(): void;
+  onMarkerActivate(slug: string): void;
 }
 
 export interface MapSceneHandle {
+  zoomIn(): void;
+  zoomOut(): void;
+  resetView(): void;
   dispose(): void;
 }
 
@@ -46,7 +53,7 @@ function markerColor(poi: MapPoi): number {
 }
 
 export function createMapScene(options: MapSceneOptions): MapSceneHandle {
-  const { canvas, planUrl, pois, onRender } = options;
+  const { canvas, planUrl, pois, onRender, onTextureReady, onTextureError, onMarkerActivate } = options;
   const controller = new AbortController();
   const resources = createDisposalRegistry();
   const scene = new THREE.Scene();
@@ -60,8 +67,11 @@ export function createMapScene(options: MapSceneOptions): MapSceneHandle {
     minDistance: 9,
     maxDistance: 18,
   };
-  let cameraState: IsometricCameraState = { targetX: 0, targetZ: 0, distance: 14 };
+  let cameraState: IsometricCameraState = { ...INITIAL_CAMERA_STATE };
   let drag: DragState | undefined;
+  let active = true;
+  let textureReady = false;
+  let textureReportedReady = false;
 
   renderer.setPixelRatio(capDevicePixelRatio(window.devicePixelRatio || 1));
   renderer.setClearColor(0x000000, 0);
@@ -73,6 +83,10 @@ export function createMapScene(options: MapSceneOptions): MapSceneHandle {
     resizeCameraProjection(camera, width, height);
     renderer.render(scene, camera);
     onRender();
+    if (textureReady && !textureReportedReady) {
+      textureReportedReady = true;
+      onTextureReady();
+    }
   };
   const invalidator = createRenderInvalidator(render);
 
@@ -83,9 +97,18 @@ export function createMapScene(options: MapSceneOptions): MapSceneHandle {
     invalidator.invalidate();
   };
 
-  const texture = resources.track(
-    new THREE.TextureLoader().load(planUrl, () => invalidator.invalidate()),
-  );
+  const texture = resources.track(new THREE.TextureLoader().load(
+    planUrl,
+    () => {
+      if (!active) return;
+      textureReady = true;
+      invalidator.invalidate();
+    },
+    undefined,
+    () => {
+      if (active) onTextureError();
+    },
+  ));
   texture.colorSpace = THREE.SRGBColorSpace;
   const planGeometry = resources.track(new THREE.PlaneGeometry(PLAN.width, PLAN.depth));
   const planMaterial = resources.track(new THREE.MeshBasicMaterial({ map: texture }));
@@ -128,6 +151,7 @@ export function createMapScene(options: MapSceneOptions): MapSceneHandle {
     raycaster.setFromCamera(pointer, camera);
     const hit = raycaster.intersectObjects(markers, false)[0];
     dispatchPoiSelect(window, hit ? String(hit.object.userData.slug) : null);
+    if (hit && active) onMarkerActivate(String(hit.object.userData.slug));
   };
 
   canvas.addEventListener(
@@ -157,14 +181,18 @@ export function createMapScene(options: MapSceneOptions): MapSceneHandle {
   canvas.addEventListener(
     "pointerup",
     (event) => {
-      if (drag && !drag.moved) {
+      if (drag?.pointerId === event.pointerId && !drag.moved) {
         selectAt(event);
       }
-      drag = undefined;
-      canvas.releasePointerCapture(event.pointerId);
+      if (drag?.pointerId === event.pointerId) {
+        drag = undefined;
+        if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+      }
     },
     { signal: controller.signal },
   );
+  canvas.addEventListener("pointercancel", () => { drag = undefined; }, { signal: controller.signal });
+  canvas.addEventListener("lostpointercapture", () => { drag = undefined; }, { signal: controller.signal });
   canvas.addEventListener(
     "wheel",
     (event) => {
@@ -180,7 +208,23 @@ export function createMapScene(options: MapSceneOptions): MapSceneHandle {
   applyCamera();
 
   return {
+    zoomIn() {
+      if (!active || !textureReportedReady) return;
+      cameraState = zoomCamera(cameraState, -1, bounds);
+      applyCamera();
+    },
+    zoomOut() {
+      if (!active || !textureReportedReady) return;
+      cameraState = zoomCamera(cameraState, 1, bounds);
+      applyCamera();
+    },
+    resetView() {
+      if (!active || !textureReportedReady) return;
+      cameraState = { ...INITIAL_CAMERA_STATE };
+      applyCamera();
+    },
     dispose() {
+      active = false;
       controller.abort();
       resizeObserver.disconnect();
       invalidator.dispose();

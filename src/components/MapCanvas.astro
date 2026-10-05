@@ -14,38 +14,51 @@ const mapPois = pois.map((poi) => ({
 }));
 ---
 
-<div
-  class="map-enhancement"
-  data-map-enhancement
-  data-webgl="pending"
-  data-pois={JSON.stringify(mapPois)}
-  data-plan-url="/map/boom-2025/plan-base.svg"
-  data-render-count="0"
->
-  <img
-    class="map-placeholder"
-    src="/map/boom-2025/plan-base.svg"
-    alt="Original placeholder plan of the Boom 2025 site with labeled zones"
-    width="960"
-    height="640"
-  />
-  <canvas class="map-canvas" aria-hidden="true" tabindex="-1"></canvas>
+<div class="map-display">
+  <div
+    class="map-enhancement"
+    data-map-enhancement
+    data-webgl="pending"
+    data-pois={JSON.stringify(mapPois)}
+    data-plan-url="/map/boom-2025/plan-base.svg"
+    data-render-count="0"
+  >
+    <img
+      class="map-placeholder"
+      src="/map/boom-2025/plan-base.svg"
+      alt="Original placeholder plan of the Boom 2025 site with labeled zones"
+      width="960"
+      height="640"
+    />
+    <canvas class="map-canvas" aria-hidden="true" tabindex="-1"></canvas>
+    <div class="map-controls" role="group" aria-label="Map view controls">
+      <button type="button" aria-label="Zoom in" disabled data-map-action="zoom-in">+</button>
+      <button type="button" aria-label="Zoom out" disabled data-map-action="zoom-out">−</button>
+      <button type="button" aria-label="Reset view" disabled data-map-action="reset">Reset</button>
+    </div>
+  </div>
+  <p class="map-guidance">Drag to explore. Use the controls to zoom. This is a schematic placeholder plan, not a geographically precise map.</p>
+  <ul class="map-legend" aria-label="Map marker legend">
+    <li><span class="legend-swatch legend-swatch-ordinary" aria-hidden="true"></span>Ordinary places</li>
+    <li><span class="legend-swatch legend-swatch-care" aria-hidden="true"></span>Highlighted care landmarks</li>
+  </ul>
 </div>
 
 <script>
-  import { dispatchPoiSelect, listenForPoiSelect } from "../scripts/map/selection";
+  import { listenForPoiSelect } from "../scripts/map/selection";
   import { supportsWebGl } from "../scripts/map/webgl-check";
   import type { MapPoi, MapSceneHandle } from "../scripts/map/scene";
 
   const setupMap = async (host: HTMLElement) => {
     const canvas = host.querySelector<HTMLCanvasElement>("canvas");
+    const controls = [...host.querySelectorAll<HTMLButtonElement>("[data-map-action]")];
 
     if (!canvas) {
       return;
     }
 
-    const controller = new AbortController();
     const links = [...document.querySelectorAll<HTMLAnchorElement>("a[data-poi-slug]")];
+    const controller = new AbortController();
     let scene: MapSceneHandle | undefined;
     let disposed = false;
     const dispose = () => {
@@ -78,28 +91,6 @@ const mapPois = pois.map((poi) => ({
       controller.signal,
     );
 
-    for (const link of links) {
-      link.addEventListener(
-        "focus",
-        () => dispatchPoiSelect(window, link.dataset.poiSlug ?? null),
-        { signal: controller.signal },
-      );
-      link.addEventListener(
-        "click",
-        () => window.sessionStorage.setItem("poi-return-focus", link.dataset.poiSlug ?? ""),
-        { signal: controller.signal },
-      );
-    }
-
-    const hashSlug = window.location.hash.slice(1);
-    const returnSlug = window.sessionStorage.getItem("poi-return-focus");
-    if (hashSlug && hashSlug === returnSlug) {
-      window.sessionStorage.removeItem("poi-return-focus");
-      requestAnimationFrame(() => {
-        document.querySelector<HTMLAnchorElement>(`a[data-poi-slug='${CSS.escape(hashSlug)}']`)?.focus();
-      });
-    }
-
     if (!supportsWebGl()) {
       host.dataset.webgl = "unavailable";
       return;
@@ -119,8 +110,41 @@ const mapPois = pois.map((poi) => ({
         onRender: () => {
           host.dataset.renderCount = String(Number(host.dataset.renderCount ?? "0") + 1);
         },
+        onTextureReady: () => {
+          if (!disposed) {
+            host.dataset.webgl = "ready";
+            controls.forEach((control) => { control.disabled = false; });
+          }
+        },
+        onTextureError: () => {
+          if (disposed) return;
+          controls.forEach((control) => { control.disabled = true; });
+          scene?.dispose();
+          scene = undefined;
+          host.dataset.webgl = "unavailable";
+        },
+        onMarkerActivate: (slug) => {
+          if (disposed) return;
+          const link = links.find((candidate) => candidate.dataset.poiSlug === slug);
+          if (!link) return;
+          try {
+            window.sessionStorage.setItem("poi-return-focus", slug);
+          } catch {
+            // Storage is optional; marker navigation must still work.
+          }
+          window.location.assign(link.href);
+        },
       });
-      host.dataset.webgl = "ready";
+      for (const control of controls) {
+        control.addEventListener("click", () => {
+          if (disposed || control.disabled || !scene) return;
+          switch (control.dataset.mapAction) {
+            case "zoom-in": scene.zoomIn(); break;
+            case "zoom-out": scene.zoomOut(); break;
+            case "reset": scene.resetView(); break;
+          }
+        }, { signal: controller.signal });
+      }
     } catch {
       scene?.dispose();
       if (!disposed) {
