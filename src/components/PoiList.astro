@@ -1,5 +1,6 @@
 ---
 import { categoryId, editionId, isProminent, type CategoryEntry, type PoiEntry } from "../lib/poi";
+import CategoryIcon from "./CategoryIcon.astro";
 
 interface Props {
   pois: PoiEntry[];
@@ -15,21 +16,25 @@ const names = new Map(categories.map((category) => [category.data.slug, category
     Curation for this edition is incomplete. No published places are available yet.
   </p>
 ) : (
-  <ul class="poi-list">
+  <ul class="poi-list" aria-label="Curated places">
     {pois.map((poi) => {
       const prominent = isProminent(poi);
       const categoryName = names.get(categoryId(poi)) ?? "Unknown category";
       return (
         <li class={prominent ? "prominent" : undefined}>
           <a
+            class="poi-row"
             href={`/poi/${editionId(poi)}/${poi.data.slug}/`}
             id={`poi-${poi.data.slug}`}
             data-poi-slug={poi.data.slug}
           >
-            {poi.data.name}
-            {prominent ? " (highlighted care landmark)" : ""}
+            <CategoryIcon category={categoryId(poi)} />
+            <span class="poi-copy">
+              <span class="poi-name">{poi.data.name}</span>
+              <span class="poi-meta">{prominent ? "Highlighted care landmark" : categoryName}</span>
+            </span>
+            <span class="poi-arrow" aria-hidden="true">→</span>
           </a>
-          <span> — {categoryName}</span>
         </li>
       );
     })}

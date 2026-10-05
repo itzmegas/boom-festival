@@ -1,7 +1,6 @@
 ---
 import { getCollection } from "astro:content";
-import CategoryFilter from "../../components/CategoryFilter.astro";
-import PoiList from "../../components/PoiList.astro";
+import MapWorkspace from "../../components/MapWorkspace.astro";
 import UnofficialNotice from "../../components/UnofficialNotice.astro";
 import "../../styles/global.css";
 import { CURRENT_EDITION, filterPois } from "../../lib/poi";
@@ -25,12 +24,15 @@ const selected = categories.find((category) => category.data.slug === slug);
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to main content</a>
-    <UnofficialNotice />
-    <main id="main-content" tabindex="-1">
-      <h1>{selected?.data.name ?? "Unknown category"}</h1>
-      <p>Only matching curated places are listed. Plan-local fan curation only.</p>
-      <CategoryFilter categories={categories} editionSlug={CURRENT_EDITION} selected={slug} />
-      <PoiList pois={visible} categories={categories} />
-    </main>
+    <div class="home-page">
+      <div class="home-notice"><UnofficialNotice /></div>
+      <main id="main-content" class="home-main" tabindex="-1">
+        <header class="home-intro">
+          <h1>{selected?.data.name ?? "Unknown category"}</h1>
+          <p>Only matching curated places are listed. Plan-local fan curation only.</p>
+        </header>
+        <MapWorkspace pois={visible} categories={categories} editionSlug={CURRENT_EDITION} selected={slug} />
+      </main>
+    </div>
   </body>
 </html>

@@ -1,0 +1,27 @@
+---
+import CategoryFilter from "./CategoryFilter.astro";
+import MapCanvas from "./MapCanvas.astro";
+import PoiList from "./PoiList.astro";
+import type { CategoryEntry, PoiEntry } from "../lib/poi";
+
+interface Props {
+  pois: PoiEntry[];
+  categories: CategoryEntry[];
+  editionSlug: string;
+  selected?: string | undefined;
+}
+
+const { pois, categories, editionSlug, selected } = Astro.props;
+---
+
+<section class="map-workspace" aria-label="Map and curated places">
+  <MapCanvas pois={pois} />
+  <aside class="place-panel" aria-label="Place explorer">
+    <CategoryFilter categories={categories} editionSlug={editionSlug} selected={selected} />
+    <div class="place-panel-heading">
+      <h2>Curated places</h2>
+      <p class="place-count">{pois.length} {pois.length === 1 ? "place" : "places"}</p>
+    </div>
+    <PoiList pois={pois} categories={categories} />
+  </aside>
+</section>

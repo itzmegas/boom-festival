@@ -1,4 +1,28 @@
 import { expect, test } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
+
+async function markerPoint(page: import("@playwright/test").Page, slug: string) {
+  return page.evaluate((slug) => {
+    const pois = JSON.parse(document.querySelector("[data-map-enhancement]")?.getAttribute("data-pois") ?? "[]") as Array<{ slug: string; x: number; y: number }>;
+    const poi = pois.find((poi) => poi.slug === slug);
+    const canvas = document.querySelector("canvas");
+    if (!poi || !canvas) throw new Error(`Expected marker ${slug} and map canvas`);
+    const rect = canvas.getBoundingClientRect();
+    const worldX = (poi.x - 0.5) * 10;
+    const worldZ = (poi.y - 0.5) * (20 / 3);
+    const direction = [-Math.SQRT1_2 * Math.cos(Math.PI / 6), -0.5, -Math.SQRT1_2 * Math.cos(Math.PI / 6)];
+    const right = [Math.SQRT1_2, 0, -Math.SQRT1_2];
+    const up = [-0.353553, Math.cos(Math.PI / 6), -0.353553];
+    const cameraX = Math.SQRT1_2 * 14 * Math.cos(Math.PI / 6);
+    const delta = [worldX - cameraX, 0.15 - 7, worldZ - cameraX];
+    const dot = (axis: number[]) => axis.reduce((sum, value, index) => sum + value * delta[index]!, 0);
+    const depth = dot(direction);
+    const scale = Math.tan(42 * Math.PI / 360);
+    const ndcX = dot(right) / (depth * scale * (rect.width / rect.height));
+    const ndcY = dot(up) / (depth * scale);
+    return { slug: poi.slug, x: rect.left + (ndcX + 1) * rect.width / 2, y: rect.top + (1 - ndcY) * rect.height / 2 };
+  }, slug);
+}
 
 async function disableWebGl(page: import("@playwright/test").Page) {
   await page.addInitScript(() => {
@@ -40,7 +64,8 @@ test("keyboard-only discovery opens a detail and Escape returns focus", async ({
   await poiLink.focus();
   const slug = await poiLink.getAttribute("data-poi-slug");
   await page.keyboard.press("Enter");
-  await expect(page.locator("h1")).not.toHaveText("Independent Boom 2025 map");
+  await expect(page).toHaveURL(new RegExp(`/poi/boom-2025/${slug}/$`));
+  await expect(page.locator("main h1")).not.toHaveText("Independent Boom 2025 map");
   await page.waitForLoadState("load");
 
   await page.keyboard.press("Escape");
@@ -119,8 +144,9 @@ test("homepage map is framed with nearby categories, a marker legend, and workin
   await expect(map).toHaveAttribute("data-webgl", "ready");
   await expect(page.getByRole("heading", { name: "Curated places" })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Filter places by category" })).toBeVisible();
-  await expect(page.getByText("Ordinary places", { exact: true })).toBeVisible();
-  await expect(page.getByText("Highlighted care landmarks", { exact: true })).toBeVisible();
+  const legend = page.getByRole("list", { name: "Map marker legend" });
+  await expect(legend.getByText("Dance floors", { exact: true })).toBeVisible();
+  await expect(legend.getByText("Care and assembly points", { exact: true })).toBeVisible();
   await expect(page.getByText(/Drag to explore\. Use the controls to zoom\./)).toBeVisible();
   await expect(page.getByText(/schematic|placeholder/i)).toBeVisible();
   await expect(page.getByText(/Not affiliated with Boom Festival/i)).toBeVisible();
@@ -280,28 +306,7 @@ test("a real marker pointer opens its existing POI detail; drag and empty clicks
   const host = page.locator("[data-map-enhancement]");
   await expect(host).toHaveAttribute("data-webgl", "ready");
 
-  const marker = await page.evaluate(() => {
-    const pois = JSON.parse(document.querySelector("[data-map-enhancement]")?.getAttribute("data-pois") ?? "[]") as Array<{ slug: string; x: number; y: number }>;
-    const poi = pois.find(({ slug }) => slug === "kosmicare");
-    const canvas = document.querySelector("canvas");
-    if (!poi || !canvas) throw new Error("Expected map marker or canvas");
-    const rect = canvas.getBoundingClientRect();
-    const worldX = (poi.x - 0.5) * 10;
-    const worldZ = (poi.y - 0.5) * (20 / 3);
-    const direction = [-Math.SQRT1_2 * Math.cos(Math.PI / 6), -0.5, -Math.SQRT1_2 * Math.cos(Math.PI / 6)];
-    const right = [Math.SQRT1_2, 0, -Math.SQRT1_2];
-    const up = [-0.353553, Math.cos(Math.PI / 6), -0.353553];
-    const cameraX = Math.SQRT1_2 * 14 * Math.cos(Math.PI / 6);
-    const cameraY = 7;
-    const cameraZ = cameraX;
-    const delta = [worldX - cameraX, 0.15 - cameraY, worldZ - cameraZ];
-    const dot = (axis: number[]) => axis.reduce((sum, value, index) => sum + value * delta[index]!, 0);
-    const depth = dot(direction);
-    const scale = Math.tan(42 * Math.PI / 360);
-    const ndcX = dot(right) / (depth * scale * (rect.width / rect.height));
-    const ndcY = dot(up) / (depth * scale);
-    return { slug: poi.slug, x: rect.left + (ndcX + 1) * rect.width / 2, y: rect.top + (1 - ndcY) * rect.height / 2 };
-  });
+  const marker = await markerPoint(page, "kosmicare");
   const detailHref = await page.locator(`[data-poi-slug='${marker.slug}']`).getAttribute("href");
   await page.mouse.click(marker.x, marker.y);
   await expect(page).toHaveURL(new RegExp(`${detailHref?.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`));
@@ -322,4 +327,98 @@ test("a real marker pointer opens its existing POI detail; drag and empty clicks
   await expect(page).toHaveURL(returnUrl);
   await page.mouse.click(box.x + 2, box.y + 2);
   await expect(page).toHaveURL(returnUrl);
+});
+
+test("category icons render in the map and hover previews are dismissible without navigation", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/");
+  const host = page.locator("[data-map-enhancement]");
+  await expect(host).toHaveAttribute("data-webgl", "ready");
+  const legend = page.getByRole("list", { name: "Map marker legend" });
+  await expect(legend.locator("li")).toHaveCount(10);
+  const canvas = page.locator(".map-canvas");
+  const baseline = await canvas.screenshot();
+  const marker = await markerPoint(page, "kosmicare");
+  await page.mouse.move(marker.x, marker.y);
+  const preview = page.getByRole("region", { name: "Map place preview" });
+  await expect(preview.getByText("Kosmicare", { exact: true })).toBeVisible();
+  await expect(preview.getByText("Care and assembly points", { exact: true })).toBeVisible();
+  await expect(canvas).toHaveCSS("cursor", "pointer");
+  const highlighted = await canvas.screenshot();
+  expect(highlighted.equals(baseline)).toBe(false);
+  await page.screenshot({ path: testInfo.outputPath("category-markers-desktop.png") });
+  const { violations } = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+    .analyze();
+  expect(violations).toEqual([]);
+
+  // The preview can be hovered and focused without disappearing beneath the pointer.
+  await preview.getByRole("link", { name: "View place" }).hover();
+  await expect(preview).toBeVisible();
+  await preview.getByRole("link", { name: "View place" }).focus();
+  await page.keyboard.press("Escape");
+  await expect(preview).toBeHidden();
+  await expect(page.locator("[data-poi-slug='kosmicare']")).toBeFocused();
+  await expect(page).toHaveURL(/\/$/);
+});
+
+test("keyboard list focus previews the corresponding named marker and retains category identity", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator("[data-map-enhancement]")).toHaveAttribute("data-webgl", "ready");
+  const preview = page.getByRole("region", { name: "Map place preview" });
+  const yoga = page.locator("[data-poi-slug='yoga-dome']");
+  await yoga.focus();
+  await expect(preview.getByText("Yoga Dome", { exact: true })).toBeVisible();
+  await expect(preview.getByText("Healing", { exact: true })).toBeVisible();
+  await expect(yoga).toHaveAttribute("aria-current", "true");
+  await page.locator("[data-poi-slug='dance-temple']").focus();
+  await expect(preview.getByText("Dance Temple", { exact: true })).toBeVisible();
+  await expect(preview.getByText("Dance floors", { exact: true })).toBeVisible();
+  await expect(yoga).not.toHaveAttribute("aria-current", "true");
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("heading", { name: "Dance Temple" })).toBeVisible();
+});
+
+test("touch marker selection previews a place before explicit detail navigation", async ({ browser }, testInfo) => {
+  const baseURL = testInfo.project.use.baseURL;
+  if (!baseURL) throw new Error("Touch map test requires the configured base URL");
+  const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 }, hasTouch: true });
+  const page = await context.newPage();
+  try {
+    await page.goto("/");
+    await expect(page.locator("[data-map-enhancement]")).toHaveAttribute("data-webgl", "ready");
+    const marker = await markerPoint(page, "kosmicare");
+    await page.touchscreen.tap(marker.x, marker.y);
+    const preview = page.getByRole("region", { name: "Map place preview" });
+    await expect(preview.getByText("Kosmicare", { exact: true })).toBeVisible();
+    await expect(page).toHaveURL(/\/$/);
+    const mapBox = await page.locator("[data-map-enhancement]").boundingBox();
+    const previewBox = await preview.boundingBox();
+    expect(previewBox!.y).toBeGreaterThan(mapBox!.y + mapBox!.height);
+    const action = preview.getByRole("link", { name: "View place" });
+    const actionBox = await action.boundingBox();
+    expect(actionBox?.height).toBeGreaterThanOrEqual(44);
+    expect(await page.locator("body").evaluate((body) => body.scrollWidth)).toBeLessThanOrEqual(390);
+    await page.screenshot({ path: testInfo.outputPath("category-markers-touch.png") });
+    await action.tap();
+    await expect(page.getByRole("heading", { name: "Kosmicare" })).toBeVisible();
+    await page.waitForLoadState("load");
+    await page.keyboard.press("Escape");
+    await expect(page).toHaveURL(/\/#kosmicare$/);
+    await expect(page.locator("[data-poi-slug='kosmicare']")).toBeFocused();
+    await expect(preview.getByText("Kosmicare", { exact: true })).toBeVisible();
+  } finally {
+    await context.close();
+  }
+});
+
+test("slow marker drags pan without accidentally opening a place", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator("[data-map-enhancement]")).toHaveAttribute("data-webgl", "ready");
+  const marker = await markerPoint(page, "kosmicare");
+  await page.mouse.move(marker.x, marker.y);
+  await page.mouse.down();
+  await page.mouse.move(marker.x + 20, marker.y + 10, { steps: 20 });
+  await page.mouse.up();
+  await expect(page).toHaveURL(/\/$/);
 });

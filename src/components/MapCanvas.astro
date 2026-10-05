@@ -1,13 +1,21 @@
 ---
-import { isProminent, type PoiEntry } from "../lib/poi";
+import { getCollection } from "astro:content";
+import { categoryId, isProminent, type PoiEntry } from "../lib/poi";
+import CategoryIcon from "./CategoryIcon.astro";
 
 interface Props {
   pois: PoiEntry[];
 }
 
 const { pois } = Astro.props;
+const categories = await getCollection("categories");
+const categoryNames = new Map(categories.map((category) => [category.data.slug, category.data.name]));
+const visibleCategories = categories.filter((category) => pois.some((poi) => categoryId(poi) === category.data.slug));
 const mapPois = pois.map((poi) => ({
   slug: poi.data.slug,
+  name: poi.data.name,
+  category: categoryId(poi),
+  categoryName: categoryNames.get(categoryId(poi)) ?? "Unknown category",
   x: poi.data.plan.x,
   y: poi.data.plan.y,
   prominent: isProminent(poi),
@@ -37,21 +45,45 @@ const mapPois = pois.map((poi) => ({
       <button type="button" aria-label="Reset view" disabled data-map-action="reset">Reset</button>
     </div>
   </div>
-  <p class="map-guidance">Drag to explore. Use the controls to zoom. This is a schematic placeholder plan, not a geographically precise map.</p>
+  <section class="map-preview" aria-label="Map place preview" data-map-preview hidden>
+    <span class="marker-icon" data-preview-icon aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path /></svg>
+    </span>
+    <div class="map-preview-copy">
+      <strong data-preview-name></strong>
+      <span data-preview-category></span>
+      <a data-preview-link>View place<span aria-hidden="true"> →</span></a>
+    </div>
+    <button type="button" class="map-preview-close" aria-label="Dismiss place preview" data-preview-close>×</button>
+  </section>
+  <p class="map-guidance">Drag to explore. Use the controls to zoom. Hover a marker or focus a place in the list to see its name. On touch screens, tap a marker to preview it. This is a schematic placeholder plan, not a geographically precise map.</p>
   <ul class="map-legend" aria-label="Map marker legend">
-    <li><span class="legend-swatch legend-swatch-ordinary" aria-hidden="true"></span>Ordinary places</li>
-    <li><span class="legend-swatch legend-swatch-care" aria-hidden="true"></span>Highlighted care landmarks</li>
+    {visibleCategories.map((category) => (
+      <li data-marker-category={category.data.slug}>
+        <CategoryIcon category={category.data.slug} />
+        {category.data.name}
+      </li>
+    ))}
   </ul>
 </div>
 
 <script>
-  import { listenForPoiSelect } from "../scripts/map/selection";
+  import { dispatchPoiSelect, listenForPoiSelect } from "../scripts/map/selection";
+  import { markerStyle } from "../lib/map-markers";
   import { supportsWebGl } from "../scripts/map/webgl-check";
   import type { MapPoi, MapSceneHandle } from "../scripts/map/scene";
 
   const setupMap = async (host: HTMLElement) => {
     const canvas = host.querySelector<HTMLCanvasElement>("canvas");
     const controls = [...host.querySelectorAll<HTMLButtonElement>("[data-map-action]")];
+    const display = host.closest<HTMLElement>(".map-display");
+    const preview = display?.querySelector<HTMLElement>("[data-map-preview]");
+    const previewName = preview?.querySelector<HTMLElement>("[data-preview-name]");
+    const previewCategory = preview?.querySelector<HTMLElement>("[data-preview-category]");
+    const previewIcon = preview?.querySelector<HTMLElement>("[data-preview-icon]");
+    const previewPath = previewIcon?.querySelector("path");
+    const previewLink = preview?.querySelector<HTMLAnchorElement>("[data-preview-link]");
+    const previewClose = preview?.querySelector<HTMLButtonElement>("[data-preview-close]");
 
     if (!canvas) {
       return;
@@ -96,6 +128,38 @@ const mapPois = pois.map((poi) => ({
       return;
     }
 
+    const rememberReturnFocus = (slug: string) => {
+      try {
+        window.sessionStorage.setItem("poi-return-focus", slug);
+      } catch {
+        // Storage is optional; marker navigation must still work.
+      }
+    };
+    const dismissPreview = () => {
+      if (!preview || preview.hidden) return;
+      const slug = preview.dataset.slug;
+      if (preview.contains(document.activeElement)) {
+        links.find((link) => link.dataset.poiSlug === slug)?.focus();
+      }
+      dispatchPoiSelect(window, null);
+    };
+    previewClose?.addEventListener("click", dismissPreview, { signal: controller.signal });
+    previewLink?.addEventListener("click", () => {
+      if (preview?.dataset.slug) rememberReturnFocus(preview.dataset.slug);
+    }, { signal: controller.signal });
+    preview?.addEventListener("focusin", () => {
+      if (preview.dataset.slug && host.dataset.selectedPoi !== preview.dataset.slug) {
+        dispatchPoiSelect(window, preview.dataset.slug);
+      }
+    }, { signal: controller.signal });
+    display?.addEventListener("pointerleave", () => scene?.clearHover(), { signal: controller.signal });
+    window.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && preview && !preview.hidden) {
+        event.preventDefault();
+        dismissPreview();
+      }
+    }, { signal: controller.signal });
+
     try {
       host.dataset.webgl = "loading";
       const { createMapScene } = await import("../scripts/map/scene");
@@ -114,6 +178,8 @@ const mapPois = pois.map((poi) => ({
           if (!disposed) {
             host.dataset.webgl = "ready";
             controls.forEach((control) => { control.disabled = false; });
+            // List focus may be restored before the lazy scene has subscribed.
+            if (host.dataset.selectedPoi) dispatchPoiSelect(window, host.dataset.selectedPoi);
           }
         },
         onTextureError: () => {
@@ -122,16 +188,26 @@ const mapPois = pois.map((poi) => ({
           scene?.dispose();
           scene = undefined;
           host.dataset.webgl = "unavailable";
+          if (preview) preview.hidden = true;
+        },
+        onMarkerPreview: (poi) => {
+          if (disposed || !preview || !previewName || !previewCategory || !previewLink) return;
+          const link = links.find((candidate) => candidate.dataset.poiSlug === poi?.slug);
+          preview.hidden = !poi || !link;
+          if (!poi || !link) return;
+          preview.dataset.slug = poi.slug;
+          previewName.textContent = poi.name;
+          previewCategory.textContent = poi.categoryName;
+          previewLink.href = link.href;
+          const style = markerStyle(poi.category);
+          previewIcon?.style.setProperty("--marker-color", style.color);
+          previewPath?.setAttribute("d", style.path);
         },
         onMarkerActivate: (slug) => {
           if (disposed) return;
           const link = links.find((candidate) => candidate.dataset.poiSlug === slug);
           if (!link) return;
-          try {
-            window.sessionStorage.setItem("poi-return-focus", slug);
-          } catch {
-            // Storage is optional; marker navigation must still work.
-          }
+          rememberReturnFocus(slug);
           window.location.assign(link.href);
         },
       });

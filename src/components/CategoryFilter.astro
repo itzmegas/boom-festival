@@ -1,10 +1,11 @@
 ---
 import type { CategoryEntry } from "../lib/poi";
+import CategoryIcon from "./CategoryIcon.astro";
 
 interface Props {
   categories: CategoryEntry[];
   editionSlug: string;
-  selected?: string;
+  selected?: string | undefined;
 }
 
 const { categories, editionSlug, selected } = Astro.props;
@@ -15,14 +16,16 @@ const editionHref = editionSlug === "boom-2025" ? "/" : `/editions/${editionSlug
   <p>Filter by category</p>
   <ul>
     <li>
-      <a href={editionHref} aria-current={selected === undefined ? "page" : undefined}>All places</a>
+      <a class="category-chip" href={editionHref} aria-current={selected === undefined ? "page" : undefined}>All places</a>
     </li>
     {categories.map((category) => (
       <li>
         <a
+          class="category-chip"
           href={editionSlug === "boom-2025" ? `/categories/${category.data.slug}/` : editionHref}
           aria-current={selected === category.data.slug ? "page" : undefined}
         >
+          <CategoryIcon category={category.data.slug} />
           {category.data.name}
         </a>
       </li>

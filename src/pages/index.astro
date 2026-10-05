@@ -1,8 +1,6 @@
 ---
 import { getCollection } from "astro:content";
-import CategoryFilter from "../components/CategoryFilter.astro";
-import MapCanvas from "../components/MapCanvas.astro";
-import PoiList from "../components/PoiList.astro";
+import MapWorkspace from "../components/MapWorkspace.astro";
 import UnofficialNotice from "../components/UnofficialNotice.astro";
 import "../styles/global.css";
 import { CURRENT_EDITION, filterPois } from "../lib/poi";
@@ -29,14 +27,7 @@ const visible = filterPois(pois, CURRENT_EDITION, undefined);
             or official navigation.
           </p>
         </header>
-        <section class="map-workspace" aria-label="Map and curated places">
-          <MapCanvas pois={visible} />
-          <div class="place-panel">
-            <CategoryFilter categories={categories} editionSlug={CURRENT_EDITION} />
-            <h2>Curated places</h2>
-            <PoiList pois={visible} categories={categories} />
-          </div>
-        </section>
+        <MapWorkspace pois={visible} categories={categories} editionSlug={CURRENT_EDITION} />
       </main>
     </div>
   </body>
