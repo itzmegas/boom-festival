@@ -1,12 +1,111 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="960" height="640" viewBox="0 0 960 640" role="img" aria-labelledby="title desc">
-  <title id="title">Original placeholder plan for Boom 2025</title>
-  <desc id="desc">Independent geometric layout with a lake, bowl, camping, and care landmarks. Not an official map.</desc>
+  <title id="title">Original illustrated schematic for Boom 2025</title>
+  <desc id="desc">Independent illustration with a labeled lake, gathering bowl, grove, culture, healing and camping zones. Paths and vegetation are illustrative. Not an official map.</desc>
+  <defs>
+    <pattern id="grain" width="28" height="28" patternUnits="userSpaceOnUse">
+      <circle cx="5" cy="8" r="1" fill="#9d8459" opacity="0.15"/>
+      <circle cx="20" cy="23" r="0.8" fill="#9d8459" opacity="0.12"/>
+    </pattern>
+    <linearGradient id="water" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#82afb4"/>
+      <stop offset="1" stop-color="#5c929f"/>
+    </linearGradient>
+    <path id="lake" d="M696 272C741 251 815 253 861 285C899 312 913 353 892 395C872 433 812 449 755 434C702 421 660 384 651 343C644 311 663 287 696 272Z"/>
+    <path id="camping" d="M399 492C450 465 509 470 562 480C626 489 670 468 718 490L788 542C757 580 674 606 584 598C504 606 438 584 393 554C379 532 382 510 399 492Z"/>
+    <clipPath id="camping-clip"><use href="#camping"/></clipPath>
+    <g id="tree">
+      <ellipse cy="13" rx="14" ry="5" fill="#536d3f" opacity="0.17"/>
+      <path d="M0 13V1" stroke="#77654c" stroke-width="3"/>
+      <circle cy="-3" r="13" fill="#819760"/>
+      <circle cx="-5" cy="-7" r="9" fill="#9aae76"/>
+      <circle cx="6" cy="-2" r="7" fill="#6e8952"/>
+    </g>
+    <g id="tent" stroke="#7c8554" stroke-width="2" stroke-linejoin="round">
+      <path d="M-13 8 0-10 13 8Z" fill="#f0e5c6"/>
+      <path d="M-4 8 0-2 4 8" fill="#9ba36f"/>
+    </g>
+    <g id="paths" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M885 480C795 483 752 459 690 429S578 392 524 363S452 337 395 339S331 345 297 309S236 257 200 225"/>
+      <path d="M395 339C430 294 505 267 562 224S607 171 649 154"/>
+      <path d="M690 429C668 483 583 520 523 542S450 565 416 575"/>
+      <path d="M395 339C359 379 313 401 262 417S167 423 139 379"/>
+    </g>
+  </defs>
+
   <rect width="960" height="640" fill="#e8d9b8"/>
-  <ellipse cx="760" cy="360" rx="140" ry="90" fill="#7aa7c7"/>
-  <rect x="360" y="200" width="220" height="160" rx="80" fill="#c9b48a"/>
-  <rect x="120" y="400" width="220" height="140" fill="#b7c99a"/>
-  <rect x="500" y="470" width="280" height="120" fill="#d2c09a"/>
-  <circle cx="400" cy="430" r="18" fill="#c45c26"/>
-  <circle cx="440" cy="410" r="18" fill="#c45c26"/>
-  <text x="48" y="48" font-size="22" fill="#3a2a18">Independent original placeholder</text>
+  <rect width="960" height="640" fill="url(#grain)"/>
+  <path d="M37 104C79 71 159 75 212 91S325 72 402 88S506 66 582 83S713 62 805 90S912 155 924 216L916 499C893 577 781 622 671 618S450 631 330 602S128 570 73 503S26 341 36 261Z" fill="none" stroke="#d1bd97" stroke-width="2"/>
+
+  <g fill="none" stroke="#d4c29e" stroke-width="2" opacity="0.8">
+    <path d="M345 114C442 68 533 98 624 116S806 108 872 175"/>
+    <path d="M357 136C450 102 521 117 604 140S771 132 847 190"/>
+    <path d="M629 166C703 154 781 161 826 204"/>
+    <path d="M60 443C89 519 166 560 268 574"/>
+    <path d="M82 440C113 501 173 534 271 550"/>
+  </g>
+
+  <path d="M88 194C121 167 166 183 196 218L200 315C196 355 170 394 139 408L91 385C67 337 65 261 88 194Z" fill="#bdc79d"/>
+  <path d="M126 112C185 91 280 92 328 116L336 159C273 181 188 179 123 150Z" fill="#c5cca6"/>
+  <path d="M220 216C266 197 329 202 364 232L373 304C338 335 261 349 214 313C194 283 192 244 220 216Z" fill="#ddcbd0"/>
+  <path d="M160 390C213 367 292 385 329 419L349 481C307 510 217 514 159 481C135 449 133 415 160 390Z" fill="#bed0a3"/>
+  <path d="M157 401C214 389 274 402 308 429" fill="none" stroke="#dae4c2" stroke-width="4"/>
+
+  <ellipse cx="465" cy="275" rx="121" ry="90" fill="#c9b48a"/>
+  <ellipse cx="465" cy="275" rx="103" ry="75" fill="none" stroke="#e0cba5" stroke-width="5"/>
+  <ellipse cx="465" cy="275" rx="83" ry="59" fill="#dfcca7" stroke="#b59b6e" stroke-width="2"/>
+  <path d="M417 306Q465 326 513 306" fill="none" stroke="#b59b6e" stroke-width="3"/>
+
+  <use href="#camping" fill="#c8c99f" stroke="#adb383" stroke-width="2"/>
+  <g clip-path="url(#camping-clip)" fill="none" stroke="#dee0ba" stroke-width="3">
+    <path d="M398 525Q551 550 776 518"/>
+    <path d="M395 549Q560 574 790 543"/>
+    <path d="M399 576Q557 599 780 571"/>
+  </g>
+
+  <use href="#lake" fill="#d3c39d" stroke="#d3c39d" stroke-width="20"/>
+  <use href="#lake" fill="url(#water)" stroke="#e6ddbd" stroke-width="4"/>
+  <g fill="none" stroke="#d2e5df" stroke-width="2" stroke-linecap="round" opacity="0.65">
+    <path d="M801 307q20-7 38 1 M818 324q24-7 44 1"/>
+    <path d="M724 394q22 8 46 3 M792 412q27 6 50-5"/>
+    <path d="M870 346q7 11 2 24"/>
+  </g>
+
+  <use href="#paths" stroke="#ccb58c" stroke-width="20"/>
+  <use href="#paths" stroke="#f1e5c9" stroke-width="12"/>
+
+  <g>
+    <use href="#tree" x="140" y="123"/><use href="#tree" x="170" y="146"/>
+    <use href="#tree" x="229" y="129"/><use href="#tree" x="293" y="160"/>
+    <use href="#tree" x="338" y="169"/><use href="#tree" x="89" y="217"/>
+    <use href="#tree" x="107" y="262"/><use href="#tree" x="81" y="307"/>
+    <use href="#tree" x="103" y="351"/><use href="#tree" x="170" y="354"/>
+    <use href="#tree" x="143" y="410"/><use href="#tree" x="177" y="487"/>
+    <use href="#tree" x="222" y="503"/><use href="#tree" x="311" y="512"/>
+    <use href="#tree" x="872" y="204"/><use href="#tree" x="906" y="241"/>
+    <use href="#tree" x="915" y="440"/><use href="#tree" x="875" y="532"/>
+  </g>
+  <g>
+    <use href="#tent" x="463" y="511"/><use href="#tent" x="509" y="501"/>
+    <use href="#tent" x="548" y="516"/><use href="#tent" x="623" y="544"/>
+    <use href="#tent" x="668" y="562"/><use href="#tent" x="726" y="558"/>
+    <use href="#tent" x="489" y="570"/><use href="#tent" x="544" y="578"/>
+  </g>
+
+  <g fill="none" stroke-width="1.5" stroke-linecap="round">
+    <path d="M317 141 319 188 311 214" stroke="#987b88"/>
+    <path d="M686 140 660 156 585 204" stroke="#9b835c"/>
+  </g>
+  <g font-family="system-ui, sans-serif" fill="#5c523c">
+    <text x="48" y="52" font-size="26" font-weight="750" letter-spacing="2">BOOM 2025</text>
+    <text x="49" y="75" font-size="12" letter-spacing="2">INDEPENDENT SCHEMATIC</text>
+    <g font-size="27" font-weight="650" letter-spacing="1.5" text-anchor="middle" paint-order="stroke" stroke="#e8d9b8" stroke-width="4" stroke-linejoin="round">
+      <text x="201" y="109" fill="#4d633a">Grove</text>
+      <text x="317" y="125" fill="#765666">Culture</text>
+      <text x="686" y="124">The bowl</text>
+      <text x="842" y="278" fill="#285667">The lake</text>
+      <text x="235" y="543" fill="#4d633a">Healing</text>
+      <text x="624" y="596" fill="#5c663d">Camping</text>
+    </g>
+    <text x="48" y="611" font-size="12" letter-spacing="1">Original illustration · Paths are illustrative</text>
+  </g>
 </svg>
