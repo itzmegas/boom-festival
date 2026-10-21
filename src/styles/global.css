@@ -111,6 +111,7 @@ button {
   color: #452653;
   font-size: clamp(1.8rem, 3.4vw, 2.8rem);
   line-height: 1.12;
+  overflow-wrap: anywhere;
 }
 
 .home-intro p {
@@ -401,6 +402,23 @@ button {
 
 .poi-list li + li {
   border-top: 1px solid #ece3d5;
+}
+
+.poi-list .has-map-action {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.map-locate {
+  display: inline-flex;
+  align-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  max-width: 6rem;
+  padding: 0.4rem;
+  font-size: 0.85rem;
 }
 
 .poi-list .poi-row {

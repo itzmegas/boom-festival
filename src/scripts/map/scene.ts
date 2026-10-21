@@ -1,8 +1,13 @@
 import * as THREE from "three";
 import {
   CAMERA_PRESET,
+  anchorCamera,
+  boundsForOverview,
   capDevicePixelRatio,
-  panCamera,
+  clampCameraState,
+  fitPlanCamera,
+  pinchCamera,
+  planPointAtScreen,
   positionForCamera,
   resizeCameraProjection,
   zoomCamera,
@@ -10,13 +15,12 @@ import {
   type IsometricCameraState,
 } from "./camera-controls";
 import { createDisposalRegistry, createRenderInvalidator } from "./lifecycle";
-import { projectToPlanPlane, type NormalizedPoint } from "./projection";
+import { projectToPlanPlane, type NormalizedPoint, type PlanPoint } from "./projection";
 import { dispatchPoiSelect, listenForPoiSelect } from "./selection";
 import { markerStyle } from "../../lib/map-markers";
 import { createMarkerTexture } from "./marker-texture";
 
 const PLAN = { width: 10, depth: 20 / 3 } as const;
-const INITIAL_CAMERA_STATE: IsometricCameraState = { targetX: 0, targetZ: 0, distance: 14 };
 
 export interface MapPoi extends NormalizedPoint {
   slug: string;
@@ -42,16 +46,27 @@ export interface MapSceneHandle {
   zoomOut(): void;
   resetView(): void;
   clearHover(): void;
+  focusPoi(slug: string): boolean;
   dispose(): void;
 }
 
-interface DragState {
-  pointerId: number;
+interface PointerPosition {
   x: number;
   y: number;
+}
+
+interface DragState extends PointerPosition {
+  pointerId: number;
   moved: boolean;
   startX: number;
   startY: number;
+}
+
+interface PinchState {
+  pointerIds: [number, number];
+  separation: number;
+  camera: IsometricCameraState;
+  anchor: PlanPoint | null;
 }
 
 interface MarkerTextures {
@@ -66,16 +81,18 @@ export function createMapScene(options: MapSceneOptions): MapSceneHandle {
   const scene = new THREE.Scene();
   const renderer = resources.track(new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true }));
   const camera = new THREE.PerspectiveCamera(CAMERA_PRESET.fieldOfViewDegrees, 1, 0.1, 100);
-  const bounds: IsometricCameraBounds = {
-    minTargetX: -2.5,
-    maxTargetX: 2.5,
-    minTargetZ: -5 / 3,
-    maxTargetZ: 5 / 3,
-    minDistance: 9,
-    maxDistance: 18,
-  };
-  let cameraState: IsometricCameraState = { ...INITIAL_CAMERA_STATE };
+  let overview = fitPlanCamera(PLAN, canvas.clientWidth, canvas.clientHeight, 70);
+  let bounds: IsometricCameraBounds = boundsForOverview(PLAN, overview);
+  let cameraState: IsometricCameraState = { ...overview };
+  let overviewMode = true;
+  let focusedSlug: string | null = null;
+  let lastWidth = 0;
+  let lastHeight = 0;
+  let lastInset = 0;
   let drag: DragState | undefined;
+  const pointers = new Map<number, PointerPosition>();
+  let pinch: PinchState | undefined;
+  let multiTouch = false;
   let active = true;
   let textureReady = false;
   let textureReportedReady = false;
@@ -86,10 +103,32 @@ export function createMapScene(options: MapSceneOptions): MapSceneHandle {
   renderer.setClearColor(0x000000, 0);
 
   const render = () => {
-    const width = Math.max(1, canvas.clientWidth);
-    const height = Math.max(1, canvas.clientHeight);
+    // Loading hides the canvas; measure its host so the first render can become ready.
+    const width = canvas.clientWidth || canvas.parentElement?.clientWidth || 0;
+    const height = canvas.clientHeight || canvas.parentElement?.clientHeight || 0;
+    if (!width || !height) return;
+    const rect = canvas.clientWidth ? canvas.getBoundingClientRect() : canvas.parentElement!.getBoundingClientRect();
+    const controls = canvas.parentElement?.querySelector(".map-controls")?.getBoundingClientRect();
+    const bottomInset = controls ? rect.bottom - controls.top + 16 : 70;
+    if (width !== lastWidth || height !== lastHeight || bottomInset !== lastInset) {
+      resetPointers();
+      const previousDistance = overview.distance;
+      overview = fitPlanCamera(PLAN, width, height, bottomInset);
+      bounds = boundsForOverview(PLAN, overview);
+      cameraState = overviewMode ? { ...overview } : clampCameraState({
+        ...cameraState,
+        distance: cameraState.distance / previousDistance * overview.distance,
+      }, bounds);
+      lastWidth = width;
+      lastHeight = height;
+      lastInset = bottomInset;
+      centerFocusedPoi();
+      positionCamera();
+    }
     renderer.setSize(width, height, false);
+    camera.far = Math.max(100, bounds.maxDistance * 4);
     resizeCameraProjection(camera, width, height);
+    canvas.dataset.camera = JSON.stringify(cameraState);
     // Screen-sized billboards remain readable as the plan moves or zooms.
     const markerSize = width < 500 ? 32 : 38;
     const scale = markerSize * 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) / height;
@@ -102,15 +141,33 @@ export function createMapScene(options: MapSceneOptions): MapSceneHandle {
     if (textureReady && !textureReportedReady) {
       textureReportedReady = true;
       onTextureReady();
+      invalidator.invalidate();
     }
   };
   const invalidator = createRenderInvalidator(render);
 
-  const applyCamera = () => {
+  const positionCamera = () => {
     const position = positionForCamera(cameraState);
     camera.position.set(position.x, position.y, position.z);
     camera.lookAt(cameraState.targetX, 0, cameraState.targetZ);
+    camera.updateMatrixWorld();
+  };
+  const applyCamera = () => {
+    centerFocusedPoi();
+    positionCamera();
     invalidator.invalidate();
+  };
+
+  const centerFocusedPoi = () => {
+    const poi = pois.find((poi) => poi.slug === focusedSlug);
+    if (!poi || !canvas.clientWidth || !canvas.clientHeight) return;
+    const rect = canvas.getBoundingClientRect();
+    const preview = canvas.closest(".map-display")?.querySelector<HTMLElement>("[data-map-preview]");
+    const previewRect = preview && !preview.hidden ? preview.getBoundingClientRect() : null;
+    const top = previewRect && previewRect.top < rect.bottom ? previewRect.bottom - rect.top + 22 : 38;
+    const y = Math.min(rect.height - lastInset - 22, (top + rect.height - lastInset) / 2);
+    cameraState = anchorCamera(cameraState, projectToPlanPlane(poi, PLAN),
+      { x: 0, y: 1 - 2 * y / rect.height }, rect.width / rect.height, bounds, 0.15);
   };
 
   const texture = resources.track(new THREE.TextureLoader().load(
@@ -180,6 +237,7 @@ export function createMapScene(options: MapSceneOptions): MapSceneHandle {
     window,
     (slug) => {
       selectedSlug = slug;
+      if (focusedSlug !== slug) focusedSlug = null;
       hoveredSlug = null;
       canvas.style.cursor = "";
       updateMarkers();
@@ -214,12 +272,45 @@ export function createMapScene(options: MapSceneOptions): MapSceneHandle {
     if (slug && active && event.pointerType !== "touch") onMarkerActivate(slug);
   };
 
+  const screenPosition = (x: number, y: number): NormalizedPoint => {
+    const rect = canvas.getBoundingClientRect();
+    return { x: 2 * (x - rect.left) / Math.max(1, rect.width) - 1, y: 1 - 2 * (y - rect.top) / Math.max(1, rect.height) };
+  };
+  const pairGeometry = (first: PointerPosition, second: PointerPosition) => ({
+    separation: Math.hypot(second.x - first.x, second.y - first.y),
+    screen: screenPosition((first.x + second.x) / 2, (first.y + second.y) / 2),
+  });
+  const resetPointers = () => {
+    const ids = [...pointers.keys()];
+    pointers.clear();
+    drag = undefined;
+    pinch = undefined;
+    multiTouch = false;
+    for (const id of ids) {
+      if (canvas.hasPointerCapture(id)) canvas.releasePointerCapture(id);
+    }
+  };
+
   canvas.addEventListener(
     "pointerdown",
     (event) => {
-      if (!event.isPrimary || event.button !== 0) return;
+      if (!textureReportedReady || event.button !== 0 || (event.pointerType !== "touch" && !event.isPrimary)) return;
       clearHover();
-      drag = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, startX: event.clientX, startY: event.clientY, moved: false };
+      pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (pointers.size === 1 && !multiTouch) {
+        drag = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, startX: event.clientX, startY: event.clientY, moved: false };
+      } else if (pointers.size === 2 && !multiTouch) {
+        multiTouch = true;
+        drag = undefined;
+        const entries = [...pointers.entries()];
+        const geometry = pairGeometry(entries[0]![1], entries[1]![1]);
+        pinch = {
+          pointerIds: [entries[0]![0], entries[1]![0]],
+          separation: geometry.separation,
+          camera: { ...cameraState },
+          anchor: planPointAtScreen(cameraState, geometry.screen, camera.aspect),
+        };
+      }
       canvas.setPointerCapture(event.pointerId);
     },
     { signal: controller.signal },
@@ -227,9 +318,9 @@ export function createMapScene(options: MapSceneOptions): MapSceneHandle {
   canvas.addEventListener(
     "pointermove",
     (event) => {
-      if (!textureReportedReady || !event.isPrimary) return;
-      if (!drag) {
-        if (event.pointerType === "touch") return;
+      if (!textureReportedReady) return;
+      if (!pointers.has(event.pointerId)) {
+        if (event.pointerType === "touch" || pointers.size) return;
         const slug = markerAt(event);
         canvas.style.cursor = slug ? "pointer" : "";
         if (slug !== hoveredSlug) {
@@ -238,11 +329,29 @@ export function createMapScene(options: MapSceneOptions): MapSceneHandle {
         }
         return;
       }
+      pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (pinch) {
+        if (!pinch.pointerIds.includes(event.pointerId)) return;
+        const first = pointers.get(pinch.pointerIds[0]);
+        const second = pointers.get(pinch.pointerIds[1]);
+        if (!first || !second) return;
+        const geometry = pairGeometry(first, second);
+        focusedSlug = null;
+        overviewMode = false;
+        cameraState = pinchCamera(pinch.camera, pinch.separation, geometry.separation,
+          pinch.anchor, geometry.screen, camera.aspect, bounds);
+        applyCamera();
+        return;
+      }
+      if (!drag) return;
       if (drag.pointerId !== event.pointerId) return;
-      const deltaX = event.clientX - drag.x;
-      const deltaY = event.clientY - drag.y;
       drag.moved ||= Math.abs(event.clientX - drag.startX) + Math.abs(event.clientY - drag.startY) > 3;
-      if (drag.moved) cameraState = panCamera(cameraState, -deltaX * 0.01, -deltaY * 0.01, bounds);
+      if (drag.moved) {
+        focusedSlug = null;
+        overviewMode = false;
+        const anchor = planPointAtScreen(cameraState, screenPosition(drag.x, drag.y), camera.aspect);
+        if (anchor) cameraState = anchorCamera(cameraState, anchor, screenPosition(event.clientX, event.clientY), camera.aspect, bounds);
+      }
       drag.x = event.clientX;
       drag.y = event.clientY;
       applyCamera();
@@ -252,22 +361,36 @@ export function createMapScene(options: MapSceneOptions): MapSceneHandle {
   canvas.addEventListener(
     "pointerup",
     (event) => {
-      if (textureReportedReady && drag?.pointerId === event.pointerId && !drag.moved) {
+      if (!pointers.has(event.pointerId)) return;
+      if (textureReportedReady && !multiTouch && drag?.pointerId === event.pointerId && !drag.moved) {
         selectAt(event);
       }
-      if (drag?.pointerId === event.pointerId) {
-        drag = undefined;
-        if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+      pointers.delete(event.pointerId);
+      if (drag?.pointerId === event.pointerId) drag = undefined;
+      if (pinch?.pointerIds.includes(event.pointerId)) {
+        const remainingId = pinch.pointerIds.find((id) => pointers.has(id));
+        const remaining = remainingId === undefined ? undefined : pointers.get(remainingId);
+        pinch = undefined;
+        if (remaining && remainingId !== undefined) {
+          drag = { pointerId: remainingId, ...remaining, startX: remaining.x, startY: remaining.y, moved: true };
+        }
       }
+      if (!pointers.size) resetPointers();
+      if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
     },
     { signal: controller.signal },
   );
-  canvas.addEventListener("pointercancel", () => { drag = undefined; }, { signal: controller.signal });
-  canvas.addEventListener("lostpointercapture", () => { drag = undefined; }, { signal: controller.signal });
+  canvas.addEventListener("pointercancel", resetPointers, { signal: controller.signal });
+  canvas.addEventListener("lostpointercapture", (event) => {
+    if (pointers.has(event.pointerId)) resetPointers();
+  }, { signal: controller.signal });
+  window.addEventListener("pagehide", resetPointers, { signal: controller.signal });
   canvas.addEventListener(
     "wheel",
     (event) => {
+      if (!textureReportedReady) return;
       event.preventDefault();
+      overviewMode = false;
       cameraState = zoomCamera(cameraState, event.deltaY * 0.01, bounds);
       applyCamera();
     },
@@ -280,23 +403,36 @@ export function createMapScene(options: MapSceneOptions): MapSceneHandle {
 
   return {
     clearHover,
+    focusPoi(slug) {
+      if (!active || !textureReportedReady || !pois.some((poi) => poi.slug === slug)) return false;
+      overviewMode = false;
+      focusedSlug = slug;
+      dispatchPoiSelect(window, slug);
+      applyCamera();
+      return true;
+    },
     zoomIn() {
       if (!active || !textureReportedReady) return;
+      overviewMode = false;
       cameraState = zoomCamera(cameraState, -1, bounds);
       applyCamera();
     },
     zoomOut() {
       if (!active || !textureReportedReady) return;
+      overviewMode = false;
       cameraState = zoomCamera(cameraState, 1, bounds);
       applyCamera();
     },
     resetView() {
       if (!active || !textureReportedReady) return;
-      cameraState = { ...INITIAL_CAMERA_STATE };
+      overviewMode = true;
+      focusedSlug = null;
+      cameraState = { ...overview };
       applyCamera();
     },
     dispose() {
       active = false;
+      resetPointers();
       controller.abort();
       resizeObserver.disconnect();
       invalidator.dispose();

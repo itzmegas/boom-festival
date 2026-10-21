@@ -1,6 +1,6 @@
 ---
 import UnofficialNotice from "./UnofficialNotice.astro";
-import { NOT_YET_CURATED, isProminent, type CategoryEntry, type PoiEntry } from "../lib/poi";
+import { CURRENT_EDITION, NOT_YET_CURATED, editionId, isProminent, type CategoryEntry, type PoiEntry } from "../lib/poi";
 
 interface Props {
   poi: PoiEntry;
@@ -15,6 +15,9 @@ const incomplete = poi.data.description === undefined || poi.data.gridRef === un
 
 <article data-poi-detail={poi.data.slug}>
   <h1>{poi.data.name}</h1>
+  {editionId(poi) === CURRENT_EDITION && (
+    <p><a class="map-locate" href={`/?poi=${encodeURIComponent(poi.data.slug)}#poi-${encodeURIComponent(poi.data.slug)}`} aria-label={`View on map: ${poi.data.name}`}>View on map</a></p>
+  )}
   <p>Category: {category?.data.name ?? "Unknown category"}</p>
   <p class={incomplete ? "incomplete" : undefined}>
     {description}

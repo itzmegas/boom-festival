@@ -5,9 +5,10 @@ import CategoryIcon from "./CategoryIcon.astro";
 interface Props {
   pois: PoiEntry[];
   categories: CategoryEntry[];
+  showMapAction?: boolean;
 }
 
-const { pois, categories } = Astro.props;
+const { pois, categories, showMapAction = false } = Astro.props;
 const names = new Map(categories.map((category) => [category.data.slug, category.data.name]));
 ---
 
@@ -21,7 +22,7 @@ const names = new Map(categories.map((category) => [category.data.slug, category
       const prominent = isProminent(poi);
       const categoryName = names.get(categoryId(poi)) ?? "Unknown category";
       return (
-        <li class={prominent ? "prominent" : undefined}>
+        <li class:list={{ prominent, "has-map-action": showMapAction }}>
           <a
             class="poi-row"
             href={`/poi/${editionId(poi)}/${poi.data.slug}/`}
@@ -35,6 +36,11 @@ const names = new Map(categories.map((category) => [category.data.slug, category
             </span>
             <span class="poi-arrow" aria-hidden="true">→</span>
           </a>
+          {showMapAction && (
+            <a class="map-locate" href={`?poi=${encodeURIComponent(poi.data.slug)}#poi-${encodeURIComponent(poi.data.slug)}`} data-map-locate={poi.data.slug} aria-label={`View on map: ${poi.data.name}`}>
+              View on map
+            </a>
+          )}
         </li>
       );
     })}

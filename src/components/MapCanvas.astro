@@ -45,7 +45,7 @@ const mapPois = pois.map((poi) => ({
       <button type="button" aria-label="Reset view" disabled data-map-action="reset">Reset</button>
     </div>
   </div>
-  <section class="map-preview" aria-label="Map place preview" data-map-preview hidden>
+  <section class="map-preview" aria-label="Map place preview" tabindex="-1" data-map-preview hidden>
     <span class="marker-icon" data-preview-icon aria-hidden="true">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path /></svg>
     </span>
@@ -56,7 +56,7 @@ const mapPois = pois.map((poi) => ({
     </div>
     <button type="button" class="map-preview-close" aria-label="Dismiss place preview" data-preview-close>×</button>
   </section>
-  <p class="map-guidance">Drag to explore. Use the controls to zoom. Hover a marker or focus a place in the list to see its name. On touch screens, tap a marker to preview it. This is a schematic placeholder plan, not a geographically precise map.</p>
+  <p class="map-guidance">Drag to explore. Use the controls to zoom. On touch screens, pinch with two fingers to zoom, or tap a marker to preview it. Hover a marker or focus a place in the list to see its name. Choose View on map to locate a place. This is a schematic placeholder plan, not a geographically precise map.</p>
   <ul class="map-legend" aria-label="Map marker legend">
     {visibleCategories.map((category) => (
       <li data-marker-category={category.data.slug}>
@@ -92,6 +92,7 @@ const mapPois = pois.map((poi) => ({
     const links = [...document.querySelectorAll<HTMLAnchorElement>("a[data-poi-slug]")];
     const controller = new AbortController();
     let scene: MapSceneHandle | undefined;
+    let pendingSlug = new URL(window.location.href).searchParams.get("poi");
     let disposed = false;
     const dispose = () => {
       if (disposed) {
@@ -127,6 +128,33 @@ const mapPois = pois.map((poi) => ({
       host.dataset.webgl = "unavailable";
       return;
     }
+
+    const locatePending = () => {
+      if (disposed || host.dataset.webgl !== "ready" || !pendingSlug || !scene) return;
+      const slug = pendingSlug;
+      pendingSlug = null;
+      if (!scene.focusPoi(slug)) return;
+      display?.scrollIntoView({ block: "start", behavior: "auto" });
+      preview?.focus({ preventScroll: true });
+    };
+    const fallbackPending = () => {
+      const link = links.find((link) => link.dataset.poiSlug === pendingSlug);
+      pendingSlug = null;
+      link?.focus();
+    };
+    for (const action of host.closest(".map-workspace")?.querySelectorAll<HTMLAnchorElement>("[data-map-locate]") ?? []) {
+      action.addEventListener("click", (event) => {
+        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || host.dataset.webgl === "unavailable") return;
+        event.preventDefault();
+        window.history.pushState(null, "", action.href);
+        pendingSlug = action.dataset.mapLocate ?? null;
+        locatePending();
+      }, { signal: controller.signal });
+    }
+    window.addEventListener("popstate", () => {
+      pendingSlug = new URL(window.location.href).searchParams.get("poi");
+      locatePending();
+    }, { signal: controller.signal });
 
     const rememberReturnFocus = (slug: string) => {
       try {
@@ -180,6 +208,7 @@ const mapPois = pois.map((poi) => ({
             controls.forEach((control) => { control.disabled = false; });
             // List focus may be restored before the lazy scene has subscribed.
             if (host.dataset.selectedPoi) dispatchPoiSelect(window, host.dataset.selectedPoi);
+            locatePending();
           }
         },
         onTextureError: () => {
@@ -189,6 +218,7 @@ const mapPois = pois.map((poi) => ({
           scene = undefined;
           host.dataset.webgl = "unavailable";
           if (preview) preview.hidden = true;
+          fallbackPending();
         },
         onMarkerPreview: (poi) => {
           if (disposed || !preview || !previewName || !previewCategory || !previewLink) return;
@@ -225,6 +255,7 @@ const mapPois = pois.map((poi) => ({
       scene?.dispose();
       if (!disposed) {
         host.dataset.webgl = "unavailable";
+        fallbackPending();
       }
     }
   };

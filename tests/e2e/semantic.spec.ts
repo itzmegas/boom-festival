@@ -4,7 +4,7 @@ import AxeBuilder from "@axe-core/playwright";
 test("landing frames the unofficial map and lists curated places", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByText(/Independent, unofficial, fan-curated/i)).toBeVisible();
-  await expect(page.getByRole("link", { name: /Kosmicare/ })).toBeVisible();
+  await expect(page.locator("[data-poi-slug='kosmicare']")).toBeVisible();
   await expect(page.getByRole("link", { name: /ticket/i })).toHaveCount(0);
 });
 
@@ -12,9 +12,9 @@ test("filter emphasizes one category and inspect keeps context", async ({ page }
   await page.goto("/");
   await page.getByRole("link", { name: "Healing", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Healing" })).toBeVisible();
-  await expect(page.getByRole("link", { name: /Yoga Dome/ })).toBeVisible();
+  await expect(page.locator("[data-poi-slug='yoga-dome']")).toBeVisible();
   await expect(page.getByRole("link", { name: /Dance Temple/ })).toHaveCount(0);
-  await page.getByRole("link", { name: /Yoga Dome/ }).click();
+  await page.locator("[data-poi-slug='yoga-dome']").click();
   await expect(page.getByRole("heading", { name: "Yoga Dome" })).toBeVisible();
   await expect(page.getByText("Category: Healing")).toBeVisible();
 });
@@ -75,20 +75,22 @@ test("category chips retain map context, active state, and matching place counts
   await expect(filters.getByRole("link", { name: "All places", exact: true })).toHaveAttribute("aria-current", "page");
   await expect(panel.getByText("36 places", { exact: true })).toBeVisible();
   const places = panel.getByRole("list", { name: "Curated places" });
-  await expect(places.getByRole("link")).toHaveCount(36);
-  await expect(places.getByRole("link").first()).toContainText("Boom Medical");
-  await expect(places.getByRole("link").first()).toContainText("Highlighted care landmark");
+  const rows = places.locator("a[data-poi-slug]");
+  await expect(rows).toHaveCount(36);
+  await expect(places.locator("[data-map-locate]")).toHaveCount(36);
+  await expect(rows.first()).toContainText("Boom Medical");
+  await expect(rows.first()).toContainText("Highlighted care landmark");
   const listBox = await places.boundingBox();
   expect(listBox!.height).toBeLessThan(500);
   expect(await places.evaluate((list) => list.scrollHeight > list.clientHeight)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath("place-panel-desktop.png") });
 
   // Keyboard focus must bring even the last row into the bounded list viewport.
-  await places.getByRole("link").last().focus();
-  await expect(places.getByRole("link").last()).toBeFocused();
-  await expect(places.getByRole("link").last()).toHaveAttribute("aria-current", "true");
+  await rows.last().focus();
+  await expect(rows.last()).toBeFocused();
+  await expect(rows.last()).toHaveAttribute("aria-current", "true");
   expect(await places.evaluate((list) => list.scrollTop)).toBeGreaterThan(0);
-  const lastRowBox = await places.getByRole("link").last().boundingBox();
+  const lastRowBox = await rows.last().boundingBox();
   const scrolledListBox = await places.boundingBox();
   expect(lastRowBox!.y).toBeGreaterThanOrEqual(scrolledListBox!.y);
   expect(lastRowBox!.y + lastRowBox!.height).toBeLessThanOrEqual(scrolledListBox!.y + scrolledListBox!.height + 1);
@@ -99,7 +101,8 @@ test("category chips retain map context, active state, and matching place counts
   await expect(page.locator("[data-map-enhancement]")).toHaveAttribute("data-webgl", "ready");
   await expect(filters.getByRole("link", { name: "Healing", exact: true })).toHaveAttribute("aria-current", "page");
   await expect(filters.locator("[aria-current='page']")).toHaveCount(1);
-  await expect(places.getByRole("link")).toHaveCount(3);
+  await expect(rows).toHaveCount(3);
+  await expect(places.locator("[data-map-locate]")).toHaveCount(3);
   await expect(panel.getByText("3 places", { exact: true })).toBeVisible();
   await expect(places.getByRole("link", { name: /Dance Temple/ })).toHaveCount(0);
   const mapSlugs = await page.locator("[data-map-enhancement]").evaluate((host) => {
@@ -111,7 +114,7 @@ test("category chips retain map context, active state, and matching place counts
 
   await filters.getByRole("link", { name: "All places", exact: true }).click();
   await expect(page).toHaveURL(/\/$/);
-  await expect(places.getByRole("link")).toHaveCount(36);
+  await expect(rows).toHaveCount(36);
   await expect(filters.getByRole("link", { name: "All places", exact: true })).toHaveAttribute("aria-current", "page");
 });
 

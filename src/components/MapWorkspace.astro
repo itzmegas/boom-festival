@@ -22,6 +22,6 @@ const { pois, categories, editionSlug, selected } = Astro.props;
       <h2>Curated places</h2>
       <p class="place-count">{pois.length} {pois.length === 1 ? "place" : "places"}</p>
     </div>
-    <PoiList pois={pois} categories={categories} />
+    <PoiList pois={pois} categories={categories} showMapAction />
   </aside>
 </section>

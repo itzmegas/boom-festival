@@ -1,28 +1,6 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-
-async function markerPoint(page: import("@playwright/test").Page, slug: string) {
-  return page.evaluate((slug) => {
-    const pois = JSON.parse(document.querySelector("[data-map-enhancement]")?.getAttribute("data-pois") ?? "[]") as Array<{ slug: string; x: number; y: number }>;
-    const poi = pois.find((poi) => poi.slug === slug);
-    const canvas = document.querySelector("canvas");
-    if (!poi || !canvas) throw new Error(`Expected marker ${slug} and map canvas`);
-    const rect = canvas.getBoundingClientRect();
-    const worldX = (poi.x - 0.5) * 10;
-    const worldZ = (poi.y - 0.5) * (20 / 3);
-    const direction = [-Math.SQRT1_2 * Math.cos(Math.PI / 6), -0.5, -Math.SQRT1_2 * Math.cos(Math.PI / 6)];
-    const right = [Math.SQRT1_2, 0, -Math.SQRT1_2];
-    const up = [-0.353553, Math.cos(Math.PI / 6), -0.353553];
-    const cameraX = Math.SQRT1_2 * 14 * Math.cos(Math.PI / 6);
-    const delta = [worldX - cameraX, 0.15 - 7, worldZ - cameraX];
-    const dot = (axis: number[]) => axis.reduce((sum, value, index) => sum + value * delta[index]!, 0);
-    const depth = dot(direction);
-    const scale = Math.tan(42 * Math.PI / 360);
-    const ndcX = dot(right) / (depth * scale * (rect.width / rect.height));
-    const ndcY = dot(up) / (depth * scale);
-    return { slug: poi.slug, x: rect.left + (ndcX + 1) * rect.width / 2, y: rect.top + (1 - ndcY) * rect.height / 2 };
-  }, slug);
-}
+import { markerPoint } from "./map-helpers";
 
 async function disableWebGl(page: import("@playwright/test").Page) {
   await page.addInitScript(() => {
@@ -49,7 +27,7 @@ test("WebGL-disabled visitors retain the complete semantic experience", async ({
   await expect(page.locator("[data-map-enhancement]")).toHaveAttribute("data-webgl", "unavailable");
   await expect(page.locator("canvas[aria-hidden='true']")).toBeHidden();
   await expect(page.locator("a[data-poi-slug]")).toHaveCount(36);
-  await expect(page.getByRole("link", { name: /Kosmicare/ })).toBeVisible();
+  await expect(page.locator("[data-poi-slug='kosmicare']")).toBeVisible();
   expect(requestedScripts.some((url) => /scene\.ts|three\.js/.test(url))).toBe(false);
 });
 
@@ -77,7 +55,7 @@ test("filtered-list navigation returns focus to its originating POI link", async
   await disableWebGl(page);
   await page.goto("/categories/healing/");
 
-  const poiLink = page.getByRole("link", { name: /Yoga Dome/ });
+  const poiLink = page.locator("[data-poi-slug='yoga-dome']");
   await poiLink.focus();
   const slug = await poiLink.getAttribute("data-poi-slug");
   await page.keyboard.press("Enter");
@@ -98,7 +76,7 @@ test("POI navigation remains usable when session storage is unavailable", async 
     });
   });
   await page.goto("/categories/healing/");
-  await page.getByRole("link", { name: /Yoga Dome/ }).click();
+  await page.locator("[data-poi-slug='yoga-dome']").click();
   await expect(page.getByRole("heading", { name: "Yoga Dome" })).toBeVisible();
 });
 
