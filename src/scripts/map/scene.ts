@@ -19,6 +19,7 @@ import { projectToPlanPlane, type NormalizedPoint, type PlanPoint } from "./proj
 import { dispatchPoiSelect, listenForPoiSelect } from "./selection";
 import { markerStyle } from "../../lib/map-markers";
 import { createMarkerTexture } from "./marker-texture";
+import { createMapDiorama } from "./diorama";
 
 const PLAN = { width: 10, depth: 20 / 3 } as const;
 
@@ -188,6 +189,7 @@ export function createMapScene(options: MapSceneOptions): MapSceneHandle {
   const plan = new THREE.Mesh(planGeometry, planMaterial);
   plan.rotation.x = -Math.PI / 2;
   scene.add(plan);
+  scene.add(createMapDiorama(PLAN, resources));
 
   const textures = new Map<string, MarkerTextures>();
   const markers = pois.map((poi) => {
