@@ -401,6 +401,7 @@ export function createMapScene(options: MapSceneOptions): MapSceneHandle {
 
   const resizeObserver = new ResizeObserver(() => invalidator.invalidate());
   resizeObserver.observe(canvas);
+  if (canvas.parentElement) resizeObserver.observe(canvas.parentElement);
   applyCamera();
 
   return {

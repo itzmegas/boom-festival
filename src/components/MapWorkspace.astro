@@ -1,6 +1,6 @@
 ---
 import CategoryFilter from "./CategoryFilter.astro";
-import MapCanvas from "./MapCanvas.astro";
+import MapViews from "./MapViews.astro";
 import PoiList from "./PoiList.astro";
 import type { CategoryEntry, PoiEntry } from "../lib/poi";
 
@@ -15,7 +15,7 @@ const { pois, categories, editionSlug, selected } = Astro.props;
 ---
 
 <section class="map-workspace" aria-label="Map and curated places">
-  <MapCanvas pois={pois} />
+  <MapViews pois={pois} />
   <aside class="place-panel" aria-label="Place explorer">
     <CategoryFilter categories={categories} editionSlug={editionSlug} selected={selected} />
     <div class="place-panel-heading">

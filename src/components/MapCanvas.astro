@@ -130,7 +130,9 @@ const mapPois = pois.map((poi) => ({
     }
 
     const locatePending = () => {
-      if (disposed || host.dataset.webgl !== "ready" || !pendingSlug || !scene) return;
+      if (disposed || !pendingSlug) return;
+      display?.dispatchEvent(new Event("map:show-illustrated", { bubbles: true }));
+      if (host.dataset.webgl !== "ready" || !scene) return;
       const slug = pendingSlug;
       pendingSlug = null;
       if (!scene.focusPoi(slug)) return;

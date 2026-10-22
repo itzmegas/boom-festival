@@ -1,0 +1,119 @@
+---
+import MapCanvas from "./MapCanvas.astro";
+import type { PoiEntry } from "../lib/poi";
+
+interface Props {
+  pois: PoiEntry[];
+}
+
+const { pois } = Astro.props;
+const osmUrl = "https://www.openstreetmap.org/#map=14/39.96258/-7.19201";
+const embedUrl = "https://www.openstreetmap.org/export/embed.html?bbox=-7.23201%2C39.93758%2C-7.15201%2C39.98758&layer=mapnik";
+---
+
+<div class="map-views" data-map-views>
+  <div class="map-view-switch" role="group" aria-label="Map type" hidden>
+    <button type="button" aria-pressed="true" aria-controls="illustrated-map" data-map-view="illustrated">Illustrated map</button>
+    <button type="button" aria-pressed="false" aria-controls="geographic-map" data-map-view="geographic">Geographic map</button>
+  </div>
+  <div id="illustrated-map">
+    <MapCanvas pois={pois} />
+  </div>
+  <section id="geographic-map" aria-label="Geographic map" hidden>
+    <h2>Festival grounds and surroundings</h2>
+    <p class="map-guidance">
+      Real geographic context from OpenStreetMap, not official navigation.
+      Curated stages and services are only on the illustrated map; View on map returns to that view.
+    </p>
+    <iframe
+      title="OpenStreetMap: Boom Festival grounds and surroundings"
+      data-src={embedUrl}
+      loading="lazy"
+      referrerpolicy="strict-origin-when-cross-origin"
+    ></iframe>
+    <p class="map-guidance">
+      © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>.
+      This external map requires internet access. If it does not load,
+      <a href={osmUrl}>open the area in OpenStreetMap</a>.
+    </p>
+  </section>
+  <noscript>
+    <p><a href={osmUrl}>View the festival grounds and surroundings on OpenStreetMap</a>.</p>
+  </noscript>
+</div>
+
+<style>
+  .map-views {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .map-view-switch {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 0.65rem;
+  }
+
+  .map-view-switch[hidden] {
+    display: none;
+  }
+
+  button {
+    justify-content: center;
+    padding: 0.35rem 0.75rem;
+    border: 1px solid #563d60;
+    border-radius: 0.5rem;
+    background: #fffaf2;
+    color: #382044;
+    font: inherit;
+    font-weight: 650;
+    cursor: pointer;
+  }
+
+  button[aria-pressed="true"] {
+    background: #542b68;
+    color: #fffaf2;
+  }
+
+  h2 {
+    margin: 0 0 0.5rem;
+    color: #452653;
+    font-size: 1.15rem;
+  }
+
+  iframe {
+    display: block;
+    width: 100%;
+    height: clamp(18rem, 55vw, 37rem);
+    border: 1px solid #b6a98f;
+    border-radius: 0.75rem;
+    background: #eee5d4;
+  }
+</style>
+
+<script>
+  for (const host of document.querySelectorAll<HTMLElement>("[data-map-views]")) {
+    const controls = host.querySelector<HTMLElement>(".map-view-switch");
+    const illustrated = host.querySelector<HTMLElement>("#illustrated-map");
+    const geographic = host.querySelector<HTMLElement>("#geographic-map");
+    const frame = geographic?.querySelector("iframe");
+    const buttons = [...host.querySelectorAll<HTMLButtonElement>("[data-map-view]")];
+    if (!controls || !illustrated || !geographic || !frame) continue;
+
+    const show = (geographicView: boolean) => {
+      illustrated.hidden = geographicView;
+      geographic.hidden = !geographicView;
+      for (const button of buttons) {
+        button.setAttribute("aria-pressed", String((button.dataset.mapView === "geographic") === geographicView));
+      }
+      // Do not contact OpenStreetMap until the visitor explicitly opens this view.
+      if (geographicView && !frame.hasAttribute("src")) frame.src = frame.dataset.src!;
+    };
+    for (const button of buttons) {
+      button.addEventListener("click", () => show(button.dataset.mapView === "geographic"));
+    }
+    host.addEventListener("map:show-illustrated", () => show(false));
+    controls.hidden = false;
+  }
+</script>
