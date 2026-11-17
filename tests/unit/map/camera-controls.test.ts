@@ -13,6 +13,7 @@ import {
   anchorCamera,
   planPointAtScreen,
   pinchCamera,
+  rotateCamera,
   type IsometricCameraBounds,
 } from "../../../src/scripts/map/camera-controls";
 
@@ -95,6 +96,35 @@ describe("anchored pinch zoom", () => {
     expect(Object.values(next).every(Number.isFinite)).toBe(true);
     expect(next.distance).toBeGreaterThanOrEqual(bounds.minDistance);
     expect(next.distance).toBeLessThanOrEqual(bounds.maxDistance);
+  });
+});
+
+describe("rotatable camera", () => {
+  it("wraps yaw, limits tilt above the terrain and rejects non-finite input", () => {
+    const initial = { targetX: 0, targetZ: 0, distance: 12 };
+    expect(rotateCamera(initial, 720 + 30, 100)).toMatchObject({ yawDegrees: 75, pitchDegrees: 89.9 });
+    expect(rotateCamera(initial, -90, -100)).toMatchObject({ yawDegrees: 315, pitchDegrees: 15 });
+    expect(rotateCamera(initial, Infinity, 0)).toBe(initial);
+    expect(rotateCamera(initial, 0, NaN)).toBe(initial);
+  });
+
+  it.each([[0, 15], [135, 60], [270, 89.9]])("keeps projection, pan and pinch correct at yaw %s and pitch %s", (yawDegrees, pitchDegrees) => {
+    const state = { targetX: 0, targetZ: 0, distance: 12, yawDegrees, pitchDegrees };
+    const camera = new PerspectiveCamera(42, 1.5, 0.1, 1000);
+    const position = positionForCamera(state);
+    camera.position.set(position.x, position.y, position.z);
+    camera.lookAt(state.targetX, 0, state.targetZ);
+    camera.updateMatrixWorld();
+    const point = planPointAtScreen(state, { x: 0.2, y: -0.3 }, 1.5)!;
+    const projected = new Vector3(point.x, 0, point.z).project(camera);
+    expect(projected.x).toBeCloseTo(0.2);
+    expect(projected.y).toBeCloseTo(-0.3);
+    const next = pinchCamera(state, 100, 120, point, { x: 0.1, y: -0.2 }, 1.5, bounds);
+    const anchored = planPointAtScreen(next, { x: 0.1, y: -0.2 }, 1.5)!;
+    expect(anchored.x).toBeCloseTo(point.x);
+    expect(anchored.z).toBeCloseTo(point.z);
+    expect(next).toMatchObject({ yawDegrees, pitchDegrees });
+    expect(panCamera(state, 1, 1, bounds)).toMatchObject({ yawDegrees, pitchDegrees });
   });
 });
 

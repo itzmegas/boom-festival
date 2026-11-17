@@ -90,6 +90,26 @@ The implementation touches only map camera/scene logic, existing place/map compo
 
 ## Scope boundary and next step
 
-No fullscreen mode, inertial gestures, camera rotation, search, GPS, routing, new map library, persistent camera storage, historical map expansion, artwork changes, or localization was added.
+No fullscreen mode, inertial gestures, camera rotation, search, GPS, routing, new map library, persistent camera storage, historical map expansion, artwork changes, or localization was added in the original mobile increment.
+
+## Follow-up: marker visibility and rotation
+
+- **Show markers** toggles all place icons without changing filters, selection or
+  artwork. Hidden icons cannot be hovered or activated; the semantic list remains
+  available. **View on map** reveals them and exits rotation mode before locating.
+- **Rotate map** switches single-pointer dragging from pan to orbit, including
+  one-finger touch. Arrow keys on that button also rotate. Horizontal rotation
+  wraps through 360°; tilt stays between 15° and 89.9° to avoid the underside and
+  the camera pole. Disable the mode to pan or tap markers again.
+- Pinch and wheel zoom keep working at the current angle. Resize preserves the
+  orientation; **Reset** restores the default angle and responsive overview and
+  exits rotation mode, without changing marker visibility.
+- Both toggles expose `aria-pressed` and remain disabled when WebGL is unavailable.
+  No camera or visibility preferences are persisted across navigation.
+
+Checks: `tests/unit/map/camera-controls.test.ts` covers rotated projection,
+anchoring and angle limits; `tests/e2e/map-display-options.spec.ts` covers hidden
+marker rendering/hit testing, explicit reveal, mouse/touch/keyboard rotation,
+rotated pan/pinch, resize and reset. Real-device performance remains unmeasured.
 
 Next step: validate interaction feel and bounds on real iOS Safari and Android Chrome before device sign-off. Manual screen-reader testing is also not claimed; automated axe results are not proof of full WCAG conformance. The full overview deliberately prioritizes showing the complete plan over avoiding all marker overlap; explicit focus and zoom provide detail.

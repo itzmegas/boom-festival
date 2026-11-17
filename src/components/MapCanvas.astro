@@ -56,7 +56,11 @@ const mapPois = pois.map((poi) => ({
     </div>
     <button type="button" class="map-preview-close" aria-label="Dismiss place preview" data-preview-close>×</button>
   </section>
-  <p class="map-guidance">Drag to explore. Use the controls to zoom. On touch screens, pinch with two fingers to zoom, or tap a marker to preview it. Hover a marker or focus a place in the list to see its name. Choose View on map to locate a place. This is a schematic placeholder plan, not a geographically precise map.</p>
+  <div class="map-options" role="group" aria-label="Map display options">
+    <button type="button" aria-pressed="true" disabled data-map-action="markers">Show markers</button>
+    <button type="button" aria-pressed="false" aria-describedby="map-guidance" disabled data-map-action="rotate">Rotate map</button>
+  </div>
+  <p class="map-guidance" id="map-guidance">Drag to explore. Use the controls to zoom. Enable Rotate map to turn and tilt by dragging, or use arrow keys while its button is focused. Reset restores the initial angle. Use Show markers to hide or reveal the place icons. On touch screens, pinch with two fingers to zoom, or tap a marker to preview it when rotation is off. Hover a marker or focus a place in the list to see its name. Choose View on map to reveal and locate a place. This is a schematic placeholder plan, not a geographically precise map.</p>
   <ul class="map-legend" aria-label="Map marker legend">
     {visibleCategories.map((category) => (
       <li data-marker-category={category.data.slug}>
@@ -75,8 +79,10 @@ const mapPois = pois.map((poi) => ({
 
   const setupMap = async (host: HTMLElement) => {
     const canvas = host.querySelector<HTMLCanvasElement>("canvas");
-    const controls = [...host.querySelectorAll<HTMLButtonElement>("[data-map-action]")];
     const display = host.closest<HTMLElement>(".map-display");
+    const controls = [...display?.querySelectorAll<HTMLButtonElement>("[data-map-action]") ?? []];
+    const markersButton = controls.find((control) => control.dataset.mapAction === "markers");
+    const rotateButton = controls.find((control) => control.dataset.mapAction === "rotate");
     const preview = display?.querySelector<HTMLElement>("[data-map-preview]");
     const previewName = preview?.querySelector<HTMLElement>("[data-preview-name]");
     const previewCategory = preview?.querySelector<HTMLElement>("[data-preview-category]");
@@ -92,6 +98,18 @@ const mapPois = pois.map((poi) => ({
     const links = [...document.querySelectorAll<HTMLAnchorElement>("a[data-poi-slug]")];
     const controller = new AbortController();
     let scene: MapSceneHandle | undefined;
+    let markersVisible = true;
+    let rotationMode = false;
+    const showMarkers = (visible: boolean) => {
+      markersVisible = visible;
+      markersButton?.setAttribute("aria-pressed", String(visible));
+      scene?.setMarkersVisible(visible);
+    };
+    const setRotationMode = (enabled: boolean) => {
+      rotationMode = enabled;
+      rotateButton?.setAttribute("aria-pressed", String(enabled));
+      scene?.setRotationMode(enabled);
+    };
     let pendingSlug = new URL(window.location.href).searchParams.get("poi");
     let disposed = false;
     const dispose = () => {
@@ -135,6 +153,8 @@ const mapPois = pois.map((poi) => ({
       if (host.dataset.webgl !== "ready" || !scene) return;
       const slug = pendingSlug;
       pendingSlug = null;
+      showMarkers(true);
+      setRotationMode(false);
       if (!scene.focusPoi(slug)) return;
       display?.scrollIntoView({ block: "start", behavior: "auto" });
       preview?.focus({ preventScroll: true });
@@ -249,10 +269,19 @@ const mapPois = pois.map((poi) => ({
           switch (control.dataset.mapAction) {
             case "zoom-in": scene.zoomIn(); break;
             case "zoom-out": scene.zoomOut(); break;
-            case "reset": scene.resetView(); break;
+            case "reset": setRotationMode(false); scene.resetView(); break;
+            case "markers": showMarkers(!markersVisible); break;
+            case "rotate": setRotationMode(!rotationMode); break;
           }
         }, { signal: controller.signal });
       }
+      rotateButton?.addEventListener("keydown", (event) => {
+        if (disposed || rotateButton.disabled || !scene || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
+        event.preventDefault();
+        setRotationMode(true);
+        scene.rotate(event.key === "ArrowLeft" ? -15 : event.key === "ArrowRight" ? 15 : 0,
+          event.key === "ArrowUp" ? 10 : event.key === "ArrowDown" ? -10 : 0);
+      }, { signal: controller.signal });
     } catch {
       scene?.dispose();
       if (!disposed) {

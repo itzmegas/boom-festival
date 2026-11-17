@@ -6,8 +6,6 @@ export const CAMERA_PRESET = {
   fieldOfViewDegrees: 42,
 } as const;
 
-const pitch = CAMERA_PRESET.pitchDegrees * Math.PI / 180;
-const yaw = CAMERA_PRESET.yawDegrees * Math.PI / 180;
 const tangent = Math.tan(CAMERA_PRESET.fieldOfViewDegrees * Math.PI / 360);
 
 export function fitPlanCamera(
@@ -15,7 +13,10 @@ export function fitPlanCamera(
   width: number,
   height: number,
   bottomInset: number,
+  orientation: CameraOrientation = {},
 ): IsometricCameraState {
+  const pitch = (orientation.pitchDegrees ?? CAMERA_PRESET.pitchDegrees) * Math.PI / 180;
+  const yaw = (orientation.yawDegrees ?? CAMERA_PRESET.yawDegrees) * Math.PI / 180;
   const top = 38;
   const bottom = bottomInset + 22;
   width = Math.max(100, width);
@@ -44,6 +45,8 @@ export function fitPlanCamera(
     }
   }
   return {
+    yawDegrees: orientation.yawDegrees ?? CAMERA_PRESET.yawDegrees,
+    pitchDegrees: orientation.pitchDegrees ?? CAMERA_PRESET.pitchDegrees,
     targetX: Math.sin(yaw) * offset * distance,
     targetZ: Math.cos(yaw) * offset * distance,
     distance,
@@ -68,6 +71,8 @@ export function planPointAtScreen(
   aspect: number,
   elevation = 0,
 ): PlanPoint | null {
+  const pitch = (state.pitchDegrees ?? CAMERA_PRESET.pitchDegrees) * Math.PI / 180;
+  const yaw = (state.yawDegrees ?? CAMERA_PRESET.yawDegrees) * Math.PI / 180;
   const sx = screen.x * tangent * aspect;
   const sy = screen.y * tangent;
   const denominator = Math.sin(pitch) - sy * Math.cos(pitch);
@@ -118,7 +123,12 @@ export interface IsometricCameraBounds {
   maxDistance: number;
 }
 
-export interface IsometricCameraState {
+export interface CameraOrientation {
+  pitchDegrees?: number;
+  yawDegrees?: number;
+}
+
+export interface IsometricCameraState extends CameraOrientation {
   targetX: number;
   targetZ: number;
   distance: number;
@@ -150,6 +160,7 @@ export function clampCameraState(
   bounds: IsometricCameraBounds,
 ): IsometricCameraState {
   return {
+    ...state,
     targetX: clamp(state.targetX, bounds.minTargetX, bounds.maxTargetX),
     targetZ: clamp(state.targetZ, bounds.minTargetZ, bounds.maxTargetZ),
     distance: clamp(state.distance, bounds.minDistance, bounds.maxDistance),
@@ -181,13 +192,23 @@ export function zoomCamera(
 }
 
 export function positionForCamera(state: IsometricCameraState): CameraPosition {
-  const pitch = (CAMERA_PRESET.pitchDegrees * Math.PI) / 180;
-  const yaw = (CAMERA_PRESET.yawDegrees * Math.PI) / 180;
+  const pitch = ((state.pitchDegrees ?? CAMERA_PRESET.pitchDegrees) * Math.PI) / 180;
+  const yaw = ((state.yawDegrees ?? CAMERA_PRESET.yawDegrees) * Math.PI) / 180;
   const horizontalDistance = Math.cos(pitch) * state.distance;
   return {
     x: state.targetX + Math.sin(yaw) * horizontalDistance,
     y: Math.sin(pitch) * state.distance,
     z: state.targetZ + Math.cos(yaw) * horizontalDistance,
+  };
+}
+
+export function rotateCamera(state: IsometricCameraState, yawDelta: number, pitchDelta: number): IsometricCameraState {
+  if (!Number.isFinite(yawDelta) || !Number.isFinite(pitchDelta)) return state;
+  return {
+    ...state,
+    yawDegrees: (((state.yawDegrees ?? CAMERA_PRESET.yawDegrees) + yawDelta) % 360 + 360) % 360,
+    // Stay above the terrain and just short of the lookAt singularity at the pole.
+    pitchDegrees: clamp((state.pitchDegrees ?? CAMERA_PRESET.pitchDegrees) + pitchDelta, 15, 89.9),
   };
 }
 

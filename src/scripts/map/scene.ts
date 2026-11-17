@@ -10,6 +10,7 @@ import {
   planPointAtScreen,
   positionForCamera,
   resizeCameraProjection,
+  rotateCamera,
   zoomCamera,
   type IsometricCameraBounds,
   type IsometricCameraState,
@@ -43,6 +44,9 @@ export interface MapSceneOptions {
 }
 
 export interface MapSceneHandle {
+  setMarkersVisible(visible: boolean): void;
+  setRotationMode(enabled: boolean): void;
+  rotate(yawDelta: number, pitchDelta: number): void;
   zoomIn(): void;
   zoomOut(): void;
   resetView(): void;
@@ -99,6 +103,8 @@ export function createMapScene(options: MapSceneOptions): MapSceneHandle {
   let textureReportedReady = false;
   let selectedSlug: string | null = null;
   let hoveredSlug: string | null = null;
+  let markersVisible = true;
+  let rotationMode = false;
 
   renderer.setPixelRatio(capDevicePixelRatio(window.devicePixelRatio || 1));
   renderer.setClearColor(0x000000, 0);
@@ -114,7 +120,10 @@ export function createMapScene(options: MapSceneOptions): MapSceneHandle {
     if (width !== lastWidth || height !== lastHeight || bottomInset !== lastInset) {
       resetPointers();
       const previousDistance = overview.distance;
-      overview = fitPlanCamera(PLAN, width, height, bottomInset);
+      overview = fitPlanCamera(PLAN, width, height, bottomInset, {
+        yawDegrees: cameraState.yawDegrees ?? CAMERA_PRESET.yawDegrees,
+        pitchDegrees: cameraState.pitchDegrees ?? CAMERA_PRESET.pitchDegrees,
+      });
       bounds = boundsForOverview(PLAN, overview);
       cameraState = overviewMode ? { ...overview } : clampCameraState({
         ...cameraState,
@@ -224,7 +233,7 @@ export function createMapScene(options: MapSceneOptions): MapSceneHandle {
       marker.renderOrder = highlighted ? 1 : 0;
     }
     const previewSlug = hoveredSlug ?? selectedSlug;
-    onMarkerPreview(pois.find((poi) => poi.slug === previewSlug) ?? null);
+    onMarkerPreview(markersVisible ? pois.find((poi) => poi.slug === previewSlug) ?? null : null);
     invalidator.invalidate();
   };
 
@@ -251,6 +260,7 @@ export function createMapScene(options: MapSceneOptions): MapSceneHandle {
   const pointer = new THREE.Vector2();
   const iconCenter = new THREE.Vector2(0.5, 0.5);
   const markerAt = (event: PointerEvent): string | null => {
+    if (!markersVisible || rotationMode) return null;
     const rect = canvas.getBoundingClientRect();
     pointer.set(
       ((event.clientX - rect.left) / rect.width) * 2 - 1,
@@ -268,6 +278,7 @@ export function createMapScene(options: MapSceneOptions): MapSceneHandle {
     return hit ? String(hit.object.userData.slug) : null;
   };
   const selectAt = (event: PointerEvent) => {
+    if (!markersVisible || rotationMode) return;
     const slug = markerAt(event);
     dispatchPoiSelect(window, slug);
     // Touch visitors can inspect a place before choosing the preview's detail link.
@@ -351,8 +362,12 @@ export function createMapScene(options: MapSceneOptions): MapSceneHandle {
       if (drag.moved) {
         focusedSlug = null;
         overviewMode = false;
-        const anchor = planPointAtScreen(cameraState, screenPosition(drag.x, drag.y), camera.aspect);
-        if (anchor) cameraState = anchorCamera(cameraState, anchor, screenPosition(event.clientX, event.clientY), camera.aspect, bounds);
+        if (rotationMode) {
+          cameraState = rotateCamera(cameraState, (drag.x - event.clientX) * 0.35, (event.clientY - drag.y) * 0.35);
+        } else {
+          const anchor = planPointAtScreen(cameraState, screenPosition(drag.x, drag.y), camera.aspect);
+          if (anchor) cameraState = anchorCamera(cameraState, anchor, screenPosition(event.clientX, event.clientY), camera.aspect, bounds);
+        }
       }
       drag.x = event.clientX;
       drag.y = event.clientY;
@@ -406,6 +421,27 @@ export function createMapScene(options: MapSceneOptions): MapSceneHandle {
 
   return {
     clearHover,
+    setMarkersVisible(visible) {
+      markersVisible = visible;
+      hoveredSlug = null;
+      canvas.style.cursor = "";
+      for (const marker of markers) marker.visible = visible;
+      updateMarkers();
+    },
+    setRotationMode(enabled) {
+      resetPointers();
+      clearHover();
+      rotationMode = enabled;
+      canvas.dataset.rotate = String(enabled);
+    },
+    rotate(yawDelta, pitchDelta) {
+      if (!active || !textureReportedReady) return;
+      resetPointers();
+      overviewMode = false;
+      focusedSlug = null;
+      cameraState = rotateCamera(cameraState, yawDelta, pitchDelta);
+      applyCamera();
+    },
     focusPoi(slug) {
       if (!active || !textureReportedReady || !pois.some((poi) => poi.slug === slug)) return false;
       overviewMode = false;
@@ -430,6 +466,9 @@ export function createMapScene(options: MapSceneOptions): MapSceneHandle {
       if (!active || !textureReportedReady) return;
       overviewMode = true;
       focusedSlug = null;
+      resetPointers();
+      overview = fitPlanCamera(PLAN, lastWidth, lastHeight, lastInset);
+      bounds = boundsForOverview(PLAN, overview);
       cameraState = { ...overview };
       applyCamera();
     },

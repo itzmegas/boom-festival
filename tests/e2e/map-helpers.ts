@@ -4,7 +4,7 @@ import { PerspectiveCamera, Plane, Raycaster, Vector2, Vector3 } from "three";
 export async function cameraState(page: Page) {
   const state = await page.locator("canvas").getAttribute("data-camera");
   if (!state) throw new Error("Rendered camera state is missing");
-  return JSON.parse(state) as { targetX: number; targetZ: number; distance: number };
+  return JSON.parse(state) as { targetX: number; targetZ: number; distance: number; yawDegrees?: number; pitchDegrees?: number };
 }
 
 async function projection(page: Page) {
@@ -12,8 +12,11 @@ async function projection(page: Page) {
   const rect = await page.locator("canvas").boundingBox();
   if (!rect) throw new Error("Map canvas is missing");
   const camera = new PerspectiveCamera(42, rect.width / rect.height, 0.1, 10000);
-  const horizontal = Math.cos(Math.PI / 6) * state.distance * Math.SQRT1_2;
-  camera.position.set(state.targetX + horizontal, state.distance / 2, state.targetZ + horizontal);
+  const pitch = (state.pitchDegrees ?? 30) * Math.PI / 180;
+  const yaw = (state.yawDegrees ?? 45) * Math.PI / 180;
+  const horizontal = Math.cos(pitch) * state.distance;
+  camera.position.set(state.targetX + Math.sin(yaw) * horizontal, Math.sin(pitch) * state.distance,
+    state.targetZ + Math.cos(yaw) * horizontal);
   camera.lookAt(state.targetX, 0, state.targetZ);
   camera.updateMatrixWorld();
   return { camera, rect };
