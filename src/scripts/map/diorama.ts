@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import type { DisposalRegistry } from "./lifecycle";
 import { projectToPlanPlane, type PlanDimensions } from "./projection";
+import { createDanceTemple } from "./dance-temple";
+import { createAlchemyCircle } from "./alchemy-circle";
 
 // Authored against the original 960 × 640 schematic, not surveyed geography.
 const TREES = [
@@ -8,6 +10,8 @@ const TREES = [
   [89, 217], [107, 262], [81, 307], [103, 351], [170, 354],
   [143, 410], [177, 487], [222, 503], [311, 512],
   [872, 204], [906, 241], [915, 440], [875, 532],
+  [491, 213], [632, 244], [640, 274], [627, 315], [598, 329], [525, 327],
+  [344, 205], [361, 183], [440, 181], [456, 214],
 ] as const;
 
 export function createMapDiorama(plan: PlanDimensions, resources: DisposalRegistry): THREE.Group {
@@ -80,18 +84,21 @@ export function createMapDiorama(plan: PlanDimensions, resources: DisposalRegist
   for (const mesh of [trunks, crowns, shadows]) mesh.instanceMatrix.needsUpdate = true;
   group.add(trunks, crowns, shadows);
 
-  for (const [index, [x, y, radius]] of ([
-    [557, 262, 0.56], [403, 243, 0.4], [461, 141, 0.36],
-    [154, 230, 0.32], [605, 179, 0.32], [211, 282, 0.34],
-  ] as const).entries()) {
-    add(`stage-platform-${index}`, platform, wood, x, y, 0.04, radius, 0.08, radius);
-    add(`stage-canopy-${index}`, roof, index % 2 ? terracotta : canvas,
+  for (const [id, x, y, radius] of [
+    [2, 461, 141, 0.36], [3, 154, 230, 0.32],
+    [4, 605, 179, 0.32], [5, 211, 282, 0.34],
+  ] as const) {
+    add(`stage-platform-${id}`, platform, wood, x, y, 0.04, radius, 0.08, radius);
+    add(`stage-canopy-${id}`, roof, id % 2 ? terracotta : canvas,
       x, y, 0.4, radius, 0.24, radius);
     for (const [dx, dy] of [[-1, -1], [-1, 1], [1, -1], [1, 1]] as const) {
       add("canopy-post", box, wood, x + dx * radius * 55, y + dy * radius * 55,
         0.19, 0.025, 0.3, 0.025);
     }
   }
+
+  group.add(createDanceTemple(plan, resources));
+  group.add(createAlchemyCircle(plan, resources));
 
   add("healing-dome", crown, canvas, 317, 467, 0.02, 0.32, 0.32, 0.32);
   add("culture-pavilion", box, terracotta, 326, 250, 0.12, 0.38, 0.24, 0.28);

@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="960" height="640" viewBox="0 0 960 640" role="img" aria-labelledby="title desc">
   <title id="title">Original illustrated schematic for Boom 2025</title>
-  <desc id="desc">Independent illustration with a labeled lake, gathering bowl, grove, culture, healing and camping zones. Paths and vegetation are illustrative. Not an official map.</desc>
+  <desc id="desc">Independent illustration with a labeled lake, Dance Temple courtyard, Alchemy Circle pavilion, gathering bowl, grove, culture, healing and camping zones. Paths and vegetation are illustrative. Not an official map.</desc>
   <defs>
     <pattern id="grain" width="28" height="28" patternUnits="userSpaceOnUse">
       <circle cx="5" cy="8" r="1" fill="#9d8459" opacity="0.15"/>
@@ -10,6 +10,10 @@
       <stop stop-color="#82afb4"/>
       <stop offset="1" stop-color="#5c929f"/>
     </linearGradient>
+    <radialGradient id="temple-ground">
+      <stop stop-color="#f4e3b9"/>
+      <stop offset="1" stop-color="#d6bc8e"/>
+    </radialGradient>
     <path id="lake" d="M696 272C741 251 815 253 861 285C899 312 913 353 892 395C872 433 812 449 755 434C702 421 660 384 651 343C644 311 663 287 696 272Z"/>
     <path id="camping" d="M399 492C450 465 509 470 562 480C626 489 670 468 718 490L788 542C757 580 674 606 584 598C504 606 438 584 393 554C379 532 382 510 399 492Z"/>
     <clipPath id="camping-clip"><use href="#camping"/></clipPath>
@@ -29,6 +33,8 @@
       <path d="M395 339C430 294 505 267 562 224S607 171 649 154"/>
       <path d="M690 429C668 483 583 520 523 542S450 565 416 575"/>
       <path d="M395 339C359 379 313 401 262 417S167 423 139 379"/>
+      <path d="M557 306Q563 338 524 363 M501 264 488 277"/>
+      <path d="M403 289Q401 320 395 339 M361 244Q339 251 331 273"/>
     </g>
   </defs>
 
@@ -54,6 +60,23 @@
   <ellipse cx="465" cy="275" rx="103" ry="75" fill="none" stroke="#e0cba5" stroke-width="5"/>
   <ellipse cx="465" cy="275" rx="83" ry="59" fill="#dfcca7" stroke="#b59b6e" stroke-width="2"/>
   <path d="M417 306Q465 326 513 306" fill="none" stroke="#b59b6e" stroke-width="3"/>
+  <g id="alchemy-circle-courtyard">
+    <ellipse cx="403.2" cy="243.2" rx="62" ry="65" fill="#d5bc94"/>
+    <ellipse cx="403.2" cy="243.2" rx="55" ry="58" fill="#ead6b2" stroke="#b59468" stroke-width="2"/>
+    <path d="M370 204Q403 184 436 204L450 279Q403 301 356 279Z" fill="#699b94" stroke="#a66f40" stroke-width="3"/>
+    <g fill="none" stroke="#e4c28a" stroke-width="5">
+      <path d="M367 216Q403 198 439 216 M364 230Q403 212 442 230 M362 244Q403 226 444 244 M359 258Q403 240 447 258 M357 272Q403 254 449 272"/>
+    </g>
+  </g>
+  <g id="dance-temple-courtyard">
+    <ellipse cx="556.8" cy="262.4" rx="85" ry="67" fill="url(#temple-ground)"/>
+    <ellipse cx="556.8" cy="262.4" rx="77" ry="59" fill="none" stroke="#edd7aa" stroke-width="3"/>
+    <ellipse cx="556.8" cy="262.4" rx="64" ry="49" fill="#e7c88d" stroke="#b89663" stroke-width="2"/>
+    <g transform="translate(556.8 262.4) scale(1 .8)" fill="none" stroke="#b89663" stroke-width="2">
+      <circle r="14"/>
+      <path d="M-64 0H-14 M14 0H64 M0-61V-14 M0 14V61 M-45-43-10-10 M10 10 45 43 M-45 43-10 10 M10-10 45-43"/>
+    </g>
+  </g>
 
   <use href="#camping" fill="#c8c99f" stroke="#adb383" stroke-width="2"/>
   <g clip-path="url(#camping-clip)" fill="none" stroke="#dee0ba" stroke-width="3">
@@ -83,6 +106,11 @@
     <use href="#tree" x="222" y="503"/><use href="#tree" x="311" y="512"/>
     <use href="#tree" x="872" y="204"/><use href="#tree" x="906" y="241"/>
     <use href="#tree" x="915" y="440"/><use href="#tree" x="875" y="532"/>
+    <use href="#tree" x="491" y="213"/><use href="#tree" x="632" y="244"/>
+    <use href="#tree" x="640" y="274"/><use href="#tree" x="627" y="315"/>
+    <use href="#tree" x="598" y="329"/><use href="#tree" x="525" y="327"/>
+    <use href="#tree" x="344" y="205"/><use href="#tree" x="361" y="183"/>
+    <use href="#tree" x="440" y="181"/><use href="#tree" x="456" y="214"/>
   </g>
   <g>
     <use href="#tent" x="463" y="511"/><use href="#tent" x="509" y="501"/>
@@ -102,6 +130,8 @@
       <text x="201" y="109" fill="#4d633a">Grove</text>
       <text x="317" y="125" fill="#765666">Culture</text>
       <text x="686" y="124">The bowl</text>
+      <text x="562" y="356" font-size="17" letter-spacing="0.5" fill="#76503e">Dance Temple</text>
+      <text x="399" y="319" font-size="16" letter-spacing="0.5" fill="#416f69">Alchemy Circle</text>
       <text x="842" y="278" fill="#285667">The lake</text>
       <text x="235" y="543" fill="#4d633a">Healing</text>
       <text x="624" y="596" fill="#5c663d">Camping</text>
