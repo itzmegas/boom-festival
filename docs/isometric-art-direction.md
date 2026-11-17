@@ -2,7 +2,7 @@
 
 The first visual increment adds real volume to the existing map: a raised terrain
 edge, faceted trees, tent rows, stage canopies and small pavilions. It takes spatial
-readability from [Isometric NYC](https://cannoneyed.com/isometric-nyc/), not its
+readability from [Isometric NYC](https://cannoneyed.com/projects/isometric-nyc), not its
 artwork or city data. This is a first step, not a reproduction of its pixel-art detail.
 
 ## What stays stable
@@ -74,3 +74,9 @@ To remove this increment, remove the diorama import and scene attachment from
 `scene.ts`, its module and its dedicated tests. The original map works unchanged.
 Additional venue artwork, geographic correction and pixel-art rendering remain
 separate work; real-device GPU performance has not been measured.
+
+## Reference analysis
+
+See [Isometric NYC: lessons for Boom](isometric-nyc-reference.md) for the official
+repository, the creator's process account, a comparison with our current map,
+reuse constraints, and a proposed small visual experiment before further investment.
